@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 'use strict'
 
-import Libp2p, { MuxedStream } from 'libp2p'
+import Libp2p, { Connection, MuxedStream } from 'libp2p'
 import TCP from 'libp2p-tcp'
 // @ts-ignore
 import Mplex from 'libp2p-mplex'
@@ -16,22 +16,46 @@ import { TextEncoder, TextDecoder } from 'util'
 import PeerId from 'peer-id'
 import pipe from 'it-pipe'
 import { exit } from 'process'
+import delay from 'delay'
+import PriorityQueue from 'priorityqueue'
+import { Comparator } from 'priorityqueue/lib/cjs/comparator'
+import { PriorityQueue as PQ } from 'priorityqueue/lib/cjs/PriorityQueue'
+
+class Post {
+  user: string
+  content: string
+  topic: string
+  timestamp: Date
+
+  constructor(user: string, topic: string, content: string, timestamp: Date) {
+    this.user = user
+    this.topic = topic
+    this.content = content
+    this.timestamp = timestamp
+  }
+
+  static compare: Comparator<Post> = (p1: Post, p2: Post) => {
+    return p1.timestamp < p2.timestamp ? -1 : 1
+  }
+}
 
 class Peer {
   _node: Libp2p;
   _username: string;
   _textDecoder = new TextDecoder()
   _textEncoder = new TextEncoder()
+  users: Map<String, PeerId> = new Map()
+  timeline: PQ<Post>
 
   constructor(node: Libp2p, username: string) {
     this._node = node
     this._username = username
+    const comparator = Post.compare // check
+    this.timeline = new PriorityQueue({ comparator })
   }
 
   static async createPeer(username: string, bootstrapers: any): Promise<Peer> {
-    // const peerId = PeerId.createFromB58String(username)
     const node = await Libp2p.create({
-      // peerId: peerId,
       addresses: {
         listen: ['/ip4/0.0.0.0/tcp/0']
       },
@@ -67,7 +91,7 @@ class Peer {
         }
       }
     })
-    
+
     await node.start()
     return new Peer(node, username)
   }
@@ -80,31 +104,46 @@ class Peer {
     return this._username
   }
 
-  subscribeTopic(topic: string){
+  subscribeTopic(topic: string) {
     this._node.pubsub.on(topic, (msg) => {
+      this.addPost(JSON.parse(this._textDecoder.decode(msg.data)))
       console.log(`node received: ${this._textDecoder.decode(msg.data)}`)
     })
     this._node.pubsub.subscribe(topic)
   }
 
-  sendMessage(topic: string, message: string){
+  sendMessage(topic: string, message: string) {
     this._node.pubsub.publish(topic, this._textEncoder.encode(message))
+  }
+
+  addUser(username: string, id: PeerId) {
+    this.users.set(username, id)
+  }
+
+  addPost(post: Post) {
+    this.timeline.push(post)
+  }
+
+  printTimeline() {
+    console.log(this.timeline.toArray());
   }
 }
 
 async function getUsername(peerId: PeerId, node: Libp2p) {
-  const {stream} = await node.dialProtocol(peerId, '/username')
+  const { stream } = await node.dialProtocol(peerId, '/username')
+  let username = ""
   await pipe(stream,
-    async function(source) {
+    async function (source) {
       for await (const msg of source) {
-        console.log(msg.toString());
+        username += msg.toString()
       }
     }
   )
+  return username
 }
 
 async function sendUsername(username: string, stream: MuxedStream) {
-  pipe(username, stream)
+  await pipe(username, stream)
 }
 
 (async () => {
@@ -120,20 +159,26 @@ async function sendUsername(username: string, stream: MuxedStream) {
   const relayMultiaddrs = node.multiaddrs.map((m: any) => `${m.toString()}/p2p/${node.peerId.toB58String()}`)
   console.log(`Node started with multiaddress ${relayMultiaddrs}`)
 
-  node.on('peer:discovery', (peerId: PeerId) => {
-    console.log(`Peer ${node.peerId.toB58String()} discovered: ${peerId.toB58String()}`)
-    getUsername(peerId, node)
-  });
+  node.connectionManager.on('peer:connect', async (connection: Connection) => {
+    console.log(connection.remoteAddr.toString())
+    console.log('Connection established to:', connection.remotePeer.toB58String())	// Emitted when a new connection has been created
+    await delay(100)
+    peer.addUser(await getUsername(connection.remotePeer, node), connection.remotePeer)
+  })
 
   node.handle('/username', async ({ stream }) => {
-    sendUsername(peer.username, stream)
+    await sendUsername(peer.username, stream)
   })
 
   const topic = "news"
 
   peer.subscribeTopic(topic)
   setInterval(() => {
-    peer.sendMessage(topic, 'Bird bird bird, bird is the word!')
+    // console.log(peer.users);
+    peer.sendMessage(topic, JSON.stringify(new Post(peer.username, topic, "Test", new Date())))
   }, 1000)
-
+  setInterval(() => {
+    // console.log(peer.users);
+    peer.printTimeline()
+  }, 5000)
 })();

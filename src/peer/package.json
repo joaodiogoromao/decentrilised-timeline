@@ -21,7 +21,7 @@
   },
   "scripts": {
     "peer": "ts-node src/peer.ts",
-    "discover": "ts-node src/discover.ts",
+    "relay": "ts-node src/relay.ts",
     "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx",
     "test": "jest",
     "clean": "rm -rf dist build package",
@@ -47,6 +47,7 @@
     "typescript": "^4.2.3"
   },
   "dependencies": {
+    "delay": "^5.0.0",
     "libp2p": "^0.35.7",
     "libp2p-bootstrap": "^0.14.0",
     "libp2p-gossipsub": "^0.12.1",
@@ -55,6 +56,7 @@
     "libp2p-pubsub-peer-discovery": "^4.0.0",
     "libp2p-relay-server": "^0.3.0",
     "libp2p-tcp": "^0.17.2",
-    "multiaddr": "^10.0.1"
+    "multiaddr": "^10.0.1",
+    "priorityqueue": "^1.0.0"
   }
 }
