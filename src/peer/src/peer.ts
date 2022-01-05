@@ -1,61 +1,92 @@
-#!/usr/bin/env node
+/* eslint-disable no-console */
+'use strict'
 
-import libp2p from 'libp2p'
-import tcp from 'libp2p-tcp'
-import { NOISE } from 'libp2p-noise'
+import Libp2p from 'libp2p'
+import TCP from 'libp2p-tcp'
 // @ts-ignore
-import mplex from 'libp2p-mplex'
-import process from 'process'
-import { multiaddr } from 'multiaddr'
+import Mplex from 'libp2p-mplex'
+import { NOISE } from 'libp2p-noise'
+import Gossipsub from 'libp2p-gossipsub'
+import Bootstrap from 'libp2p-bootstrap'
+// @ts-ignore
+import PubsubPeerDiscovery from 'libp2p-pubsub-peer-discovery'
+// @ts-ignore
+import createRelayServer from 'libp2p-relay-server'
+import { TextEncoder, TextDecoder } from 'util'
 
-const startLibp2p = async (node: libp2p) => {
-    await node.start()
-    console.log('libp2p has started')
-}
-
-const stopLibp2p = async (node: libp2p) => {
-    await node.stop()
-    console.log('libp2p has stopped')
-    process.exit(0)
-}
-
-const logAdresses = (node: libp2p) => {
-    console.log('listening on addresses:')
-    node.multiaddrs.forEach(addr => {
-        console.log(`${addr.toString()}/p2p/${node.peerId.toB58String()}`)
-    })
-}
-
-const ping = async (node: libp2p) => {
-    if (process.argv.length >= 3) {
-        const ma = multiaddr(process.argv[2])
-        console.log(`pinging remote peer at ${process.argv[2]}`)
-        const latency = await node.ping(ma)
-        console.log(`pinged ${process.argv[2]} in ${latency}ms`)
-    } else {
-        console.log('no remote peer address given, skipping ping')
-    }
-}
-
-const main = async () => {
-    const node: libp2p = await libp2p.create({
-        addresses: {
-            // add a listen address (localhost) to accept TCP connections on a random port
-            listen: ['/ip4/127.0.0.1/tcp/0']
+const createNode = async (bootstrapers: any) => {
+  const node = await Libp2p.create({
+    addresses: {
+      listen: ['/ip4/0.0.0.0/tcp/0']
+    },
+    modules: {
+      transport: [TCP],
+      streamMuxer: [Mplex],
+      connEncryption: [NOISE],
+      pubsub: Gossipsub,
+      peerDiscovery: bootstrapers.length === 0 ? [PubsubPeerDiscovery] : [Bootstrap, PubsubPeerDiscovery]
+    },
+    config: {
+      peerDiscovery:
+        bootstrapers.length !== 0 ? {
+          [PubsubPeerDiscovery.tag]: {
+            interval: 1000,
+            enabled: true
+          },
+          [Bootstrap.tag]: {
+            enabled: true,
+            list: bootstrapers
+          }
+        } : {
+          [PubsubPeerDiscovery.tag]: {
+            interval: 1000,
+            enabled: true
+          }
         },
-        modules: {
-            transport: [tcp],
-            connEncryption: [NOISE],
-            streamMuxer: [mplex]
+      relay: {
+        enabled: true, // Allows you to dial and accept relayed connections. Does not make you a relay.
+        hop: {
+          enabled: true // Allows you to be a relay for other peers
         }
-    })
+      }
+    }
+  })
 
-    await startLibp2p(node)
-    logAdresses(node)
-    ping(node)
+  return node
+};
 
-    process.on('SIGTERM', () => stopLibp2p(node))
-    process.on('SIGINT', () => stopLibp2p(node))
+const subscribeTopic = (node: Libp2p, topic: string) => {
+  const textDecoder = new TextDecoder()
+  node.pubsub.on(topic, (msg) => {
+    console.log(`node received: ${textDecoder.decode(msg.data)}`)
+  })
+  node.pubsub.subscribe(topic)
 }
 
-main()
+const sendMessage = (node: Libp2p, topic: string, message: string) => {
+  const textEncoder = new TextEncoder()
+  node.pubsub.publish(topic, textEncoder.encode(message))
+}
+
+(async () => {
+
+  console.log(process.argv);
+  
+  const node = await createNode([process.argv[3]])
+  await node.start()
+
+  const relayMultiaddrs = node.multiaddrs.map((m: any) => `${m.toString()}/p2p/${node.peerId.toB58String()}`)
+  console.log(`Node started with multiaddress ${relayMultiaddrs}`)
+
+  node.on('peer:discovery', (peerId: any) => {
+    console.log(`Peer ${node.peerId.toB58String()} discovered: ${peerId.toB58String()}`)
+  });
+
+  const topic = "news"
+
+  subscribeTopic(node, topic)
+  setInterval(() => {
+    sendMessage(node, topic, 'Bird bird bird, bird is the word!')
+  }, 1000)
+  
+})();
