@@ -14,66 +14,79 @@ import PubsubPeerDiscovery from 'libp2p-pubsub-peer-discovery'
 import createRelayServer from 'libp2p-relay-server'
 import { TextEncoder, TextDecoder } from 'util'
 
-const createNode = async (bootstrapers: any) => {
-  const node = await Libp2p.create({
-    addresses: {
-      listen: ['/ip4/0.0.0.0/tcp/0']
-    },
-    modules: {
-      transport: [TCP],
-      streamMuxer: [Mplex],
-      connEncryption: [NOISE],
-      pubsub: Gossipsub,
-      peerDiscovery: bootstrapers.length === 0 ? [PubsubPeerDiscovery] : [Bootstrap, PubsubPeerDiscovery]
-    },
-    config: {
-      peerDiscovery:
-        bootstrapers.length !== 0 ? {
-          [PubsubPeerDiscovery.tag]: {
-            interval: 1000,
-            enabled: true
+class Peer {
+  _node: Libp2p;
+
+  constructor(node: Libp2p) {
+    this._node = node
+  }
+
+  static async createPeer(bootstrapers: any): Promise<Peer> {
+    const node = await Libp2p.create({
+      addresses: {
+        listen: ['/ip4/0.0.0.0/tcp/0']
+      },
+      modules: {
+        transport: [TCP],
+        streamMuxer: [Mplex],
+        connEncryption: [NOISE],
+        pubsub: Gossipsub,
+        peerDiscovery: bootstrapers.length === 0 ? [PubsubPeerDiscovery] : [Bootstrap, PubsubPeerDiscovery]
+      },
+      config: {
+        peerDiscovery:
+          bootstrapers.length !== 0 ? {
+            [PubsubPeerDiscovery.tag]: {
+              interval: 1000,
+              enabled: true
+            },
+            [Bootstrap.tag]: {
+              enabled: true,
+              list: bootstrapers
+            }
+          } : {
+            [PubsubPeerDiscovery.tag]: {
+              interval: 1000,
+              enabled: true
+            }
           },
-          [Bootstrap.tag]: {
-            enabled: true,
-            list: bootstrapers
+        relay: {
+          enabled: true, // Allows you to dial and accept relayed connections. Does not make you a relay.
+          hop: {
+            enabled: true // Allows you to be a relay for other peers
           }
-        } : {
-          [PubsubPeerDiscovery.tag]: {
-            interval: 1000,
-            enabled: true
-          }
-        },
-      relay: {
-        enabled: true, // Allows you to dial and accept relayed connections. Does not make you a relay.
-        hop: {
-          enabled: true // Allows you to be a relay for other peers
         }
       }
-    }
-  })
+    })
 
-  return node
-};
+    await node.start()
+    return new Peer(node)
+  }
 
-const subscribeTopic = (node: Libp2p, topic: string) => {
-  const textDecoder = new TextDecoder()
-  node.pubsub.on(topic, (msg) => {
-    console.log(`node received: ${textDecoder.decode(msg.data)}`)
-  })
-  node.pubsub.subscribe(topic)
-}
+  public get node() {
+    return this._node
+  }
 
-const sendMessage = (node: Libp2p, topic: string, message: string) => {
-  const textEncoder = new TextEncoder()
-  node.pubsub.publish(topic, textEncoder.encode(message))
+  subscribeTopic(topic: string){
+    const textDecoder = new TextDecoder()
+    this._node.pubsub.on(topic, (msg) => {
+      console.log(`node received: ${textDecoder.decode(msg.data)}`)
+    })
+    this._node.pubsub.subscribe(topic)
+  }
+
+  sendMessage(topic: string, message: string){
+    const textEncoder = new TextEncoder()
+    this._node.pubsub.publish(topic, textEncoder.encode(message))
+  }
 }
 
 (async () => {
 
   console.log(process.argv);
-  
-  const node = await createNode([process.argv[3]])
-  await node.start()
+
+  const peer = await Peer.createPeer([process.argv[2]])
+  const node = peer.node
 
   const relayMultiaddrs = node.multiaddrs.map((m: any) => `${m.toString()}/p2p/${node.peerId.toB58String()}`)
   console.log(`Node started with multiaddress ${relayMultiaddrs}`)
@@ -84,9 +97,9 @@ const sendMessage = (node: Libp2p, topic: string, message: string) => {
 
   const topic = "news"
 
-  subscribeTopic(node, topic)
+  peer.subscribeTopic(topic)
   setInterval(() => {
-    sendMessage(node, topic, 'Bird bird bird, bird is the word!')
+    peer.sendMessage(topic, 'Bird bird bird, bird is the word!')
   }, 1000)
-  
+
 })();
