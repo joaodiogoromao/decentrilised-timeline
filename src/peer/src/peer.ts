@@ -19,15 +19,21 @@ import delay from 'delay'
 import PriorityQueue from 'priorityqueue'
 import { PriorityQueue as PQ } from 'priorityqueue/lib/cjs/PriorityQueue'
 import Post from './post'
-import { randomInt } from 'crypto'
 import { getUsername, sendReply } from './protocols'
+import Files from './files'
+import { Multiaddr } from 'multiaddr'
+
+export interface PeerInfo {
+  username: string
+  timeline: PQ<Post>
+}
 
 class Peer {
   node: Libp2p;
   username: string;
   textDecoder = new TextDecoder()
   textEncoder = new TextEncoder()
-  users: Map<String, PeerId> = new Map()
+  users: Map<string, PeerId> = new Map()
   timeline: PQ<Post>
 
   constructor(node: Libp2p, username: string) {
@@ -35,6 +41,13 @@ class Peer {
     this.username = username
     const comparator = Post.compare
     this.timeline = new PriorityQueue({ comparator })
+    this.writeToFile(5)
+  }
+
+  static async createPeerFromFields(peerFields: PeerInfo, boostrapers: Array<string>): Promise<Peer> {
+    const peer = await this.createPeer(peerFields.username, boostrapers)
+    peer.timeline = peerFields.timeline
+    return peer
   }
 
   static async createPeer(username: string, bootstrapers: any): Promise<Peer> {
@@ -82,6 +95,7 @@ class Peer {
   subscribeTopic(topic: string) {
     this.node.pubsub.on(topic, (msg) => {
       this.addPost(JSON.parse(this.textDecoder.decode(msg.data)))
+      console.log("Received message");
     })
     this.node.pubsub.subscribe(topic)
   }
@@ -107,12 +121,21 @@ class Peer {
       this.addUser(remoteUsername, connection.remotePeer)
       this.subscribeTopic(remoteUsername)
     })
-  
+
     this.node.handle('/username', async ({ stream }) => {
       await sendReply(this.username, stream)
     })
   }
+
+  writeToFile(seconds: number) {
+    Files.createFile()
+    setInterval(() => {
+      Files.storeInfo(this)
+    }, seconds * 1000)
+  }
 }
+
+export default Peer;
 
 (async () => {
 
@@ -120,20 +143,30 @@ class Peer {
     console.log("npm run peer <username> [bootstraper]")
     exit(1)
   }
+  const username = process.argv[2]
+  const bootstraper = process.argv[3]
 
-  const peer = await Peer.createPeer(process.argv[2], [process.argv[3]])
+  let peer: Peer
+  try {
+    const peerInfo = await Files.readPeer(username)
+    console.log(peerInfo)
+    peer = await Peer.createPeerFromFields(peerInfo, [bootstraper])
+  } catch (e) {
+    peer = await Peer.createPeer(username, [bootstraper])
+  }
   const node = peer.node
 
-  const relayMultiaddrs = node.multiaddrs.map((m: any) => `${m.toString()}/p2p/${node.peerId.toB58String()}`)
+
+  const relayMultiaddrs = node.multiaddrs.map((m: Multiaddr) => `${m.toString()}/p2p/${node.peerId.toB58String()}`)
   console.log(`Node started with multiaddress ${relayMultiaddrs}`)
 
   peer.findUsernamesOnConnection()
 
+  console.log(peer.timeline.toArray())
+  console.log(peer.users);
+
   // For manual testing
   setInterval(() => {
-    peer.sendMessage(peer.username, JSON.stringify(new Post(peer.username, "Test", new Date(2021, 1, 6, randomInt(10), 0, 0, 0))))
+    peer.sendMessage(peer.username, JSON.stringify(new Post(peer.username, "Test", new Date())))
   }, 1000)
-  setInterval(() => {
-    peer.timeline.toArray()
-  }, 5000)
 })();

@@ -4,19 +4,19 @@ import PeerId from 'peer-id'
 
 async function sendRequest(protocol: string, peerId: PeerId, node: Libp2p) {
   const { stream } = await node.dialProtocol(peerId, protocol)
-  let username = ""
+  let reply = ""
   await pipe(stream,
     async function (source) {
       for await (const msg of source) {
-        username += msg.toString()
+        reply += msg.toString()
       }
     }
   )
-  return username
+  return reply
 }
 
 export async function getUsername(peerId: PeerId, node: Libp2p) {
-  return sendRequest("/username", peerId, node)
+  return await sendRequest("/username", peerId, node)
 }
 
 export async function sendReply(reply: string, stream: MuxedStream) {
