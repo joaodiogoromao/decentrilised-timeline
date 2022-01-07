@@ -20,7 +20,7 @@
     "my-cli-tool": "./dist/esbuild/cli.js"
   },
   "scripts": {
-    "peer": "ts-node src/peer.ts",
+    "peer": "ts-node src/main.ts",
     "relay": "ts-node src/relay.ts",
     "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx",
     "test": "jest",
@@ -34,6 +34,8 @@
     "esbuild-node:watch": "esbuild src/peer.ts --bundle --platform=node --watch --sourcemap=external --outfile=dist/esbuild/peer.js"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.12",
+    "@types/express": "^4.17.13",
     "@types/jest": "^26.0.21",
     "@types/node": "^15.0.1",
     "@typescript-eslint/eslint-plugin": "^4.19.0",
@@ -47,7 +49,9 @@
     "typescript": "^4.2.3"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "delay": "^5.0.0",
+    "express": "^4.17.2",
     "libp2p": "^0.35.7",
     "libp2p-bootstrap": "^0.14.0",
     "libp2p-gossipsub": "^0.12.1",
@@ -56,6 +60,7 @@
     "libp2p-pubsub-peer-discovery": "^4.0.0",
     "libp2p-relay-server": "^0.3.0",
     "libp2p-tcp": "^0.17.2",
+    "libp2p-websockets": "^0.16.2",
     "multiaddr": "^10.0.1",
     "priorityqueue": "^1.0.0"
   }

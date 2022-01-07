@@ -1,10 +1,10 @@
 import { existsSync, mkdirSync, writeFile, readFile } from 'fs'
 import PriorityQueue from 'priorityqueue'
-import Peer from './peer'
-import { PeerInfo } from './peer'
-import Post from './post'
+import { Logger, LoggerTopics } from './Logger'
+import { Peer, PeerInfo } from './Peer'
+import { Post } from './Post'
 
-class Files {
+export class FileManager {
   static createFile() {
     if (!existsSync("storage")) {
       mkdirSync("storage")
@@ -19,9 +19,9 @@ class Files {
 
     writeFile("storage/" + peer.username + ".json", JSON.stringify(peerInfo), function (err) {
       if (err) {
-        console.log("Error writing peer to file")
+        console.error("Error writing peer to file")
       }
-      console.log("Wrote successfully");
+      Logger.log(LoggerTopics.DISK, "Saved peer data");
     })
   }
 
@@ -29,11 +29,9 @@ class Files {
     return new Promise((resolve, reject) => {
       readFile(`storage/${username}.json`, function (error, data) {
         if (error) {
-          console.log("File not found, continuing normally")
+          console.warn("File not found, continuing normally")
           return reject(error)
         }
-
-        console.log("Read successfully");
 
         const object = JSON.parse(data.toString())
         const comparator = Post.compare
@@ -51,5 +49,3 @@ class Files {
   }
 
 }
-
-export default Files;

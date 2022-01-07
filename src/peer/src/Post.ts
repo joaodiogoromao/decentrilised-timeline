@@ -1,6 +1,6 @@
 import { Comparator } from 'priorityqueue/lib/cjs/comparator'
 
-class Post {
+export class Post {
   user: string
   content: string
   timestamp: Date
@@ -15,5 +15,3 @@ class Post {
     return p1.timestamp > p2.timestamp ? -1 : 1 // Sort by descending order (today appears before than yesterday)
   }
 }
-
-export default Post

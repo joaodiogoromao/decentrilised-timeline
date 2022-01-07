@@ -14,21 +14,21 @@ import PubsubPeerDiscovery from 'libp2p-pubsub-peer-discovery'
 import createRelayServer from 'libp2p-relay-server'
 import { TextEncoder, TextDecoder } from 'util'
 import PeerId from 'peer-id'
-import { exit } from 'process'
 import delay from 'delay'
 import PriorityQueue from 'priorityqueue'
 import { PriorityQueue as PQ } from 'priorityqueue/lib/cjs/PriorityQueue'
-import Post from './post'
+import { Post } from './Post'
 import { getUsername, sendReply } from './protocols'
-import Files from './files'
+import { FileManager } from './FileManager'
 import { Multiaddr } from 'multiaddr'
+import { Logger, LoggerTopics } from './Logger'
 
 export interface PeerInfo {
   username: string
   timeline: PQ<Post>
 }
 
-class Peer {
+export class Peer {
   node: Libp2p;
   username: string;
   textDecoder = new TextDecoder()
@@ -95,7 +95,7 @@ class Peer {
   subscribeTopic(topic: string) {
     this.node.pubsub.on(topic, (msg) => {
       this.addPost(JSON.parse(this.textDecoder.decode(msg.data)))
-      console.log("Received message");
+      Logger.log(LoggerTopics.COMMS, "Received message");
     })
     this.node.pubsub.subscribe(topic)
   }
@@ -112,12 +112,12 @@ class Peer {
     this.timeline.push(post)
   }
 
-  findUsernamesOnConnection() {
+  setupEventListeners() {
     this.node.connectionManager.on('peer:connect', async (connection: Connection) => {
       // console.log('Connection established to:', connection.remotePeer.toB58String())	// Emitted when a new connection has been created
       await delay(100)
       const remoteUsername = await getUsername(connection.remotePeer, this.node)
-      console.log("Found user " + remoteUsername + " with Id " + connection.remotePeer.toString());
+      Logger.log(LoggerTopics.PEER, "Found user " + remoteUsername + " with Id " + connection.remotePeer.toString());
       this.addUser(remoteUsername, connection.remotePeer)
       this.subscribeTopic(remoteUsername)
     })
@@ -127,46 +127,15 @@ class Peer {
     })
   }
 
+  printMultiaddrs() {
+    const relayMultiaddrs = this.node.multiaddrs.map((m: Multiaddr) => `${m.toString()}/p2p/${this.node.peerId.toB58String()}`)
+    Logger.log(LoggerTopics.PEER, `Node started with multiaddress ${relayMultiaddrs}`)
+  }
+
   writeToFile(seconds: number) {
-    Files.createFile()
+    FileManager.createFile()
     setInterval(() => {
-      Files.storeInfo(this)
+      FileManager.storeInfo(this)
     }, seconds * 1000)
   }
 }
-
-export default Peer;
-
-(async () => {
-
-  if (process.argv.length < 3) {
-    console.log("npm run peer <username> [bootstraper]")
-    exit(1)
-  }
-  const username = process.argv[2]
-  const bootstraper = process.argv[3]
-
-  let peer: Peer
-  try {
-    const peerInfo = await Files.readPeer(username)
-    console.log(peerInfo)
-    peer = await Peer.createPeerFromFields(peerInfo, [bootstraper])
-  } catch (e) {
-    peer = await Peer.createPeer(username, [bootstraper])
-  }
-  const node = peer.node
-
-
-  const relayMultiaddrs = node.multiaddrs.map((m: Multiaddr) => `${m.toString()}/p2p/${node.peerId.toB58String()}`)
-  console.log(`Node started with multiaddress ${relayMultiaddrs}`)
-
-  peer.findUsernamesOnConnection()
-
-  console.log(peer.timeline.toArray())
-  console.log(peer.users);
-
-  // For manual testing
-  setInterval(() => {
-    peer.sendMessage(peer.username, JSON.stringify(new Post(peer.username, "Test", new Date())))
-  }, 1000)
-})();
