@@ -1,61 +1,172 @@
-#!/usr/bin/env node
+/* eslint-disable no-console */
+'use strict'
 
-import libp2p from 'libp2p'
-import tcp from 'libp2p-tcp'
-import { NOISE } from 'libp2p-noise'
+import Libp2p, { Connection } from 'libp2p'
+import TCP from 'libp2p-tcp'
 // @ts-ignore
-import mplex from 'libp2p-mplex'
-import process from 'process'
-import { multiaddr } from 'multiaddr'
+import Mplex from 'libp2p-mplex'
+import { NOISE } from 'libp2p-noise'
+import Gossipsub from 'libp2p-gossipsub'
+import Bootstrap from 'libp2p-bootstrap'
+// @ts-ignore
+import PubsubPeerDiscovery from 'libp2p-pubsub-peer-discovery'
+// @ts-ignore
+import createRelayServer from 'libp2p-relay-server'
+import { TextEncoder, TextDecoder } from 'util'
+import PeerId from 'peer-id'
+import { exit } from 'process'
+import delay from 'delay'
+import PriorityQueue from 'priorityqueue'
+import { PriorityQueue as PQ } from 'priorityqueue/lib/cjs/PriorityQueue'
+import Post from './post'
+import { getUsername, sendReply } from './protocols'
+import Files from './files'
+import { Multiaddr } from 'multiaddr'
 
-const startLibp2p = async (node: libp2p) => {
-    await node.start()
-    console.log('libp2p has started')
+export interface PeerInfo {
+  username: string
+  timeline: PQ<Post>
 }
 
-const stopLibp2p = async (node: libp2p) => {
-    await node.stop()
-    console.log('libp2p has stopped')
-    process.exit(0)
-}
+class Peer {
+  node: Libp2p;
+  username: string;
+  textDecoder = new TextDecoder()
+  textEncoder = new TextEncoder()
+  users: Map<string, PeerId> = new Map()
+  timeline: PQ<Post>
 
-const logAdresses = (node: libp2p) => {
-    console.log('listening on addresses:')
-    node.multiaddrs.forEach(addr => {
-        console.log(`${addr.toString()}/p2p/${node.peerId.toB58String()}`)
-    })
-}
+  constructor(node: Libp2p, username: string) {
+    this.node = node
+    this.username = username
+    const comparator = Post.compare
+    this.timeline = new PriorityQueue({ comparator })
+    this.writeToFile(5)
+  }
 
-const ping = async (node: libp2p) => {
-    if (process.argv.length >= 3) {
-        const ma = multiaddr(process.argv[2])
-        console.log(`pinging remote peer at ${process.argv[2]}`)
-        const latency = await node.ping(ma)
-        console.log(`pinged ${process.argv[2]} in ${latency}ms`)
-    } else {
-        console.log('no remote peer address given, skipping ping')
-    }
-}
+  static async createPeerFromFields(peerFields: PeerInfo, boostrapers: Array<string>): Promise<Peer> {
+    const peer = await this.createPeer(peerFields.username, boostrapers)
+    peer.timeline = peerFields.timeline
+    return peer
+  }
 
-const main = async () => {
-    const node: libp2p = await libp2p.create({
-        addresses: {
-            // add a listen address (localhost) to accept TCP connections on a random port
-            listen: ['/ip4/127.0.0.1/tcp/0']
-        },
-        modules: {
-            transport: [tcp],
-            connEncryption: [NOISE],
-            streamMuxer: [mplex]
+  static async createPeer(username: string, bootstrapers: any): Promise<Peer> {
+    const node = await Libp2p.create({
+      addresses: {
+        listen: ['/ip4/0.0.0.0/tcp/0']
+      },
+      modules: {
+        transport: [TCP],
+        streamMuxer: [Mplex],
+        connEncryption: [NOISE],
+        pubsub: Gossipsub,
+        peerDiscovery: bootstrapers.length === 0 ? [PubsubPeerDiscovery] : [Bootstrap, PubsubPeerDiscovery]
+      },
+      config: {
+        peerDiscovery:
+          bootstrapers.length !== 0 ? {
+            [PubsubPeerDiscovery.tag]: {
+              interval: 1000,
+              enabled: true
+            },
+            [Bootstrap.tag]: {
+              enabled: true,
+              list: bootstrapers
+            }
+          } : {
+            [PubsubPeerDiscovery.tag]: {
+              interval: 1000,
+              enabled: true
+            }
+          },
+        relay: {
+          enabled: true, // Allows you to dial and accept relayed connections. Does not make you a relay.
+          hop: {
+            enabled: true // Allows you to be a relay for other peers
+          }
         }
+      }
     })
 
-    await startLibp2p(node)
-    logAdresses(node)
-    ping(node)
+    await node.start()
+    return new Peer(node, username)
+  }
 
-    process.on('SIGTERM', () => stopLibp2p(node))
-    process.on('SIGINT', () => stopLibp2p(node))
+  subscribeTopic(topic: string) {
+    this.node.pubsub.on(topic, (msg) => {
+      this.addPost(JSON.parse(this.textDecoder.decode(msg.data)))
+      console.log("Received message");
+    })
+    this.node.pubsub.subscribe(topic)
+  }
+
+  sendMessage(topic: string, message: string) {
+    this.node.pubsub.publish(topic, this.textEncoder.encode(message))
+  }
+
+  addUser(username: string, id: PeerId) {
+    this.users.set(username, id)
+  }
+
+  addPost(post: Post) {
+    this.timeline.push(post)
+  }
+
+  findUsernamesOnConnection() {
+    this.node.connectionManager.on('peer:connect', async (connection: Connection) => {
+      // console.log('Connection established to:', connection.remotePeer.toB58String())	// Emitted when a new connection has been created
+      await delay(100)
+      const remoteUsername = await getUsername(connection.remotePeer, this.node)
+      console.log("Found user " + remoteUsername + " with Id " + connection.remotePeer.toString());
+      this.addUser(remoteUsername, connection.remotePeer)
+      this.subscribeTopic(remoteUsername)
+    })
+
+    this.node.handle('/username', async ({ stream }) => {
+      await sendReply(this.username, stream)
+    })
+  }
+
+  writeToFile(seconds: number) {
+    Files.createFile()
+    setInterval(() => {
+      Files.storeInfo(this)
+    }, seconds * 1000)
+  }
 }
 
-main()
+export default Peer;
+
+(async () => {
+
+  if (process.argv.length < 3) {
+    console.log("npm run peer <username> [bootstraper]")
+    exit(1)
+  }
+  const username = process.argv[2]
+  const bootstraper = process.argv[3]
+
+  let peer: Peer
+  try {
+    const peerInfo = await Files.readPeer(username)
+    console.log(peerInfo)
+    peer = await Peer.createPeerFromFields(peerInfo, [bootstraper])
+  } catch (e) {
+    peer = await Peer.createPeer(username, [bootstraper])
+  }
+  const node = peer.node
+
+
+  const relayMultiaddrs = node.multiaddrs.map((m: Multiaddr) => `${m.toString()}/p2p/${node.peerId.toB58String()}`)
+  console.log(`Node started with multiaddress ${relayMultiaddrs}`)
+
+  peer.findUsernamesOnConnection()
+
+  console.log(peer.timeline.toArray())
+  console.log(peer.users);
+
+  // For manual testing
+  setInterval(() => {
+    peer.sendMessage(peer.username, JSON.stringify(new Post(peer.username, "Test", new Date())))
+  }, 1000)
+})();
