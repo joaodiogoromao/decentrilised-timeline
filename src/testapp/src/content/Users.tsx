@@ -6,6 +6,6 @@ export interface UsersProps {
 export const Users = ({ data }: UsersProps) => {
     return <div>
         <h2>Users</h2>
-        { data === null ? "Loading..." : data.map(s => <p>{s}</p>) }
+        { data === null ? "Loading..." : data.map((s, idx) => <p key={idx}>{s}</p>) }
     </div>
 }

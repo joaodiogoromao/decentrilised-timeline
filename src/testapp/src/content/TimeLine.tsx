@@ -12,6 +12,7 @@ export interface TimeLineProps {
 export const TimeLine = ({ data }: TimeLineProps) => {
     return <div>
         <h2>TimeLine</h2>
-        { data === null ? "Loading..." : data.map((s: any) => <p>{s.user}, {s.content}, {s.timestamp}</p>) }
+        { data === null ? "Loading..." : data.map((s: any, idx) => 
+            <p key={idx}>{s.user}, {s.content}, {s.timestamp}</p>) }
     </div>
 }

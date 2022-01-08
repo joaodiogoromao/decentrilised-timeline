@@ -16,10 +16,17 @@ export const initInterface = (peer: Peer) => {
     res.send(peer.users)
   })
 
+  app.get('/ping', (_req, res) => {
+    res.send('ping')
+  })
+
   const server = app.listen(0, () => {
     //@ts-ignore
     const port = server.address().port
+
+    console.log("\n============================================================\n")
     Logger.log(LoggerTopics.INTERFACE, `Peer interface listening on http://localhost:${port}`)
     Logger.log(LoggerTopics.INTERFACE, `Test app on http://localhost:3000/?port=${port}`)
+    console.log("\n============================================================\n")
   })
 }

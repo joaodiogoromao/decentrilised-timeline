@@ -2,24 +2,24 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { Post, TimeLine } from './TimeLine'
 import { Users } from './Users'
+import { Connection } from '../utils/PeerEndpoints'
 
 export interface PeerContentProps {
-    interfacePort: string
+    connection: Connection
 }
 
-export const PeerContent = ({ interfacePort }: PeerContentProps) => {
+export const PeerContent = ({ connection }: PeerContentProps) => {
     const [timeline, setTimeline] = useState<Array<Post> | null>(null)
     const [users, setUsers] = useState<Array<string> | null>(null)
-    const url = `http://localhost:${interfacePort}`
 
     const load = () => {
         setTimeline(null)
         setUsers(null)
-        axios.get(`${url}/timeline`)
+        axios.get(connection.timeline)
             .then(data => {
                 setTimeline(data.data)
             })
-        axios.get(`${url}/users`)
+        axios.get(connection.users)
             .then(data => {
                 // TODO
                 console.log(data.data)
