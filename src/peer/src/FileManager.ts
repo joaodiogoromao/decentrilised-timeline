@@ -1,6 +1,5 @@
 import { existsSync, mkdirSync, writeFile, readFile } from 'fs'
 import PriorityQueue from 'priorityqueue'
-import { Logger, LoggerTopics } from './Logger'
 import { Peer, PeerInfo } from './Peer'
 import { Post } from './Post'
 
@@ -21,7 +20,7 @@ export class FileManager {
       if (err) {
         console.error("Error writing peer to file")
       }
-      Logger.log(LoggerTopics.DISK, "Saved peer data");
+      //Logger.log(LoggerTopics.DISK, "Saved peer data");
     })
   }
 

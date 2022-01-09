@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import axios from 'axios'
-import { Post, TimeLine } from './TimeLine'
+import { Timeline } from './Timeline'
 import { Users } from './Users'
 import { Connection } from '../utils/PeerEndpoints'
+import { ConnectionContext } from '../utils/RequireConnection'
+import { PostPublisher } from './PostPublisher'
+import { Post } from './TimelinePost'
 
 export interface PeerContentProps {
     connection: Connection
@@ -10,30 +13,58 @@ export interface PeerContentProps {
 
 export const PeerContent = ({ connection }: PeerContentProps) => {
     const [timeline, setTimeline] = useState<Array<Post> | null>(null)
-    const [users, setUsers] = useState<Array<string> | null>(null)
+    const [users, setUsers] = useState<Map<string, boolean> | null>(null)
 
-    const load = () => {
-        setTimeline(null)
-        setUsers(null)
-        axios.get(connection.timeline)
-            .then(data => {
-                setTimeline(data.data)
-            })
-        axios.get(connection.users)
-            .then(data => {
-                // TODO
-                console.log(data.data)
-                setUsers(["TODO"])
-            })
+    const username = useContext(ConnectionContext);
+
+    document.title = username;
+
+    const load = async (setNull: boolean = true) => {
+        console.log("Loading...")
+        if (setNull) {
+            setTimeline(null)
+            setUsers(null)
+        }
+
+        const requests = [
+            axios.get(connection.timeline),
+            axios.get(connection.users),
+            axios.get(connection.subscriptions)
+        ]
+
+        const [timelineRes, usersRes, subscriptionsRes] = await Promise.all(requests);
+
+        setTimeline(timelineRes.data)
+
+        const subscriptions = new Set(subscriptionsRes.data as Array<string>)
+        const newUsers = new Map()
+
+        for (const user of usersRes.data as Array<string>)
+            newUsers.set(user, subscriptions.has(user))
+
+        setUsers(newUsers)
     }
 
-    useEffect(load, [])
+    const subscribe = (username: string) => axios.put(connection.user(username))
+    const unsubscribe = (username: string) => axios.delete(connection.user(username))
+
+    const clearTimeline = () => axios.delete(connection.timeline)
+
+    const publish = (content: string) => axios.post(connection.post, content, { headers: { "content-type": "text/plain" } })
+
+    useEffect(() => {
+        setInterval(load.bind(this, false), 1000)
+    }, [])
 
     return <>
-        { timeline !== null && users !== null ? <input type="button" value="Reload" onClick={load} /> : undefined }
-        <div style={{ display: "flex", gap: "4rem" }}>
-            <TimeLine data={timeline} />
-            <Users data={users} />
+        { timeline !== null && users !== null ? <input type="button" value="Reload" onClick={() => load()} /> : undefined }
+        <h1>Hi, {username}</h1>
+
+        <PostPublisher publish={publish} />
+
+        <div id="two-column">
+            <Timeline data={timeline} clearTimeline={clearTimeline} />
+            <Users data={users} subscribe={subscribe} unsubscribe={unsubscribe} />
         </div>
     </>
 }

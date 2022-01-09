@@ -34,6 +34,7 @@ export class Peer {
   textDecoder = new TextDecoder()
   textEncoder = new TextEncoder()
   users: Map<string, PeerId> = new Map()
+  subscribed: Set<string> = new Set()
   timeline: PQ<Post>
 
   constructor(node: Libp2p, username: string) {
@@ -94,14 +95,27 @@ export class Peer {
 
   subscribeTopic(topic: string) {
     this.node.pubsub.on(topic, (msg) => {
-      this.addPost(JSON.parse(this.textDecoder.decode(msg.data)))
-      Logger.log(LoggerTopics.COMMS, "Received message");
+      const post: Post = JSON.parse(this.textDecoder.decode(msg.data))
+      this.addPost(post)
+      Logger.log(LoggerTopics.COMMS, `Received message from '${topic}': '${post.content}'.`)
     })
     this.node.pubsub.subscribe(topic)
+    this.subscribed.add(topic)
+  }
+
+
+  unsubscribeTopic(topic: string) {
+    this.node.pubsub.removeAllListeners(topic)
+    this.node.pubsub.unsubscribe(topic)
+    this.subscribed.delete(topic)
   }
 
   sendMessage(topic: string, message: string) {
     this.node.pubsub.publish(topic, this.textEncoder.encode(message))
+  }
+
+  publish(message: string) {
+    this.sendMessage(this.username, JSON.stringify(new Post(this.username, message, new Date())))
   }
 
   addUser(username: string, id: PeerId) {
@@ -119,7 +133,6 @@ export class Peer {
       const remoteUsername = await getUsername(connection.remotePeer, this.node)
       Logger.log(LoggerTopics.PEER, "Found user " + remoteUsername + " with Id " + connection.remotePeer.toString());
       this.addUser(remoteUsername, connection.remotePeer)
-      this.subscribeTopic(remoteUsername)
     })
 
     this.node.handle('/username', async ({ stream }) => {

@@ -2,7 +2,10 @@ export interface Connection {
     global: string,
     timeline: string,
     users: string,
-    ping: string
+    username: string,
+    subscriptions: string,
+    post: string,
+    user: (user: string) => string
 }
 
 export const PeerEndpoints = (interfacePort: string): Connection => {
@@ -12,6 +15,9 @@ export const PeerEndpoints = (interfacePort: string): Connection => {
         global,
         timeline: global + "/timeline",
         users: global + "/users",
-        ping: global + "/ping"
+        username: global + "/username",
+        subscriptions: global + "/subscriptions",
+        post: global + "/post",
+        user: (username: string) => `${global}/user/${username}`
     }
 }

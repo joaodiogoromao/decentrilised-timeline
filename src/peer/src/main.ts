@@ -15,7 +15,6 @@ import { initInterface } from './interface/interface'
 import { FileManager } from './FileManager'
 import { Peer } from './Peer'
 import { Logger, LoggerTopics } from './Logger'
-import { Post } from './Post'
 
 const checkArgs = () => {
   if (process.argv.length < 3) {
@@ -46,9 +45,4 @@ const createPeer = async (username: string, bootstrapper?: string) => {
 
   peer.printMultiaddrs()
   peer.setupEventListeners()
-
-  // For manual testing
-  setInterval(() => {
-    peer.sendMessage(peer.username, JSON.stringify(new Post(peer.username, "Test", new Date())))
-  }, 1000)
 })();

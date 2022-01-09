@@ -1,4 +1,5 @@
 import axios from "axios"
+import React from "react";
 import { useEffect, useState } from "react"
 
 export interface RequireConnectionProps {
@@ -12,12 +13,18 @@ enum ErrorStage {
     ERROR
 }
 
+export const ConnectionContext = React.createContext<string>("");
+
 export const RequireConnection = ({endpoint, children }: RequireConnectionProps) => {
     const [ errorStage, setErrorStage ] = useState(ErrorStage.WAITING)
+    const [ data, setData ] = useState("")
 
     useEffect(() => {
         axios.get(endpoint)
-            .then(() => setErrorStage(ErrorStage.NO_ERROR))
+            .then((data) => {
+                setData(data.data)
+                setErrorStage(ErrorStage.NO_ERROR)
+            })
             .catch((err) => {
                 console.error(err);
                 setErrorStage(ErrorStage.ERROR)
@@ -28,7 +35,9 @@ export const RequireConnection = ({endpoint, children }: RequireConnectionProps)
         case ErrorStage.WAITING:
             return <p>Trying to connect...</p>
         case ErrorStage.NO_ERROR:
-            return children
+            return <ConnectionContext.Provider value={data}>
+                {children}
+            </ConnectionContext.Provider>
         case ErrorStage.ERROR:
             return <p style={{color: "red"}}>Unable to connect</p>
     }
