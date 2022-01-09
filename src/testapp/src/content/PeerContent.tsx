@@ -2,7 +2,7 @@ import { useContext, useEffect, useState } from 'react'
 import axios from 'axios'
 import { Timeline } from './Timeline'
 import { Users } from './Users'
-import { Connection } from '../utils/PeerEndpoints'
+import { Connection, GeneralResponse } from '../utils/PeerEndpoints'
 import { ConnectionContext } from '../utils/RequireConnection'
 import { PostPublisher } from './PostPublisher'
 import { Post } from './TimelinePost'
@@ -26,20 +26,14 @@ export const PeerContent = ({ connection }: PeerContentProps) => {
             setUsers(null)
         }
 
-        const requests = [
-            axios.get(connection.timeline),
-            axios.get(connection.users),
-            axios.get(connection.subscriptions)
-        ]
+        const res: GeneralResponse = (await axios.get(connection.general)).data;
 
-        const [timelineRes, usersRes, subscriptionsRes] = await Promise.all(requests);
+        setTimeline(res.timeline)
 
-        setTimeline(timelineRes.data)
-
-        const subscriptions = new Set(subscriptionsRes.data as Array<string>)
+        const subscriptions = new Set(res.subscriptions)
         const newUsers = new Map()
 
-        for (const user of usersRes.data as Array<string>)
+        for (const user of res.users as Array<string>)
             newUsers.set(user, subscriptions.has(user))
 
         setUsers(newUsers)
