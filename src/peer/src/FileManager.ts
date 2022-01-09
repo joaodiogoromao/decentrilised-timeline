@@ -13,7 +13,8 @@ export class FileManager {
   static async storeInfo(peer: Peer) {
     const peerInfo = {
       username: peer.username,
-      timeline: peer.timeline.toArray()
+      timeline: peer.timeline.toArray(),
+      ownPosts: peer.ownPosts.toArray()
     }
 
     writeFile("storage/" + peer.username + ".json", JSON.stringify(peerInfo), function (err) {
@@ -36,7 +37,8 @@ export class FileManager {
         const comparator = Post.compare
         const peerInfo: PeerInfo = {
           username: object.username,
-          timeline: new PriorityQueue({ comparator })
+          timeline: new PriorityQueue({ comparator }),
+          ownPosts: new PriorityQueue({ comparator })
         }
         object.timeline.forEach((post: any) => {
           peerInfo.timeline.push(<Post>post)

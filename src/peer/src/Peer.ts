@@ -26,6 +26,7 @@ import { Logger, LoggerTopics } from './Logger'
 export interface PeerInfo {
   username: string
   timeline: PQ<Post>
+  ownPosts: PQ<Post>
 }
 
 export class Peer {
@@ -36,12 +37,14 @@ export class Peer {
   users: Map<string, PeerId> = new Map()
   subscribed: Set<string> = new Set()
   timeline: PQ<Post>
+  ownPosts: PQ<Post>
 
   constructor(node: Libp2p, username: string) {
     this.node = node
     this.username = username
     const comparator = Post.compare
     this.timeline = new PriorityQueue({ comparator })
+    this.ownPosts = new PriorityQueue({ comparator })
     this.writeToFile(5)
   }
 
@@ -115,7 +118,9 @@ export class Peer {
   }
 
   publish(message: string) {
-    this.sendMessage(this.username, JSON.stringify(new Post(this.username, message, new Date())))
+    const newPost = new Post(this.username, message, new Date())
+    this.sendMessage(this.username, JSON.stringify(newPost))
+    this.ownPosts.push(newPost)
   }
 
   addUser(username: string, id: PeerId) {
