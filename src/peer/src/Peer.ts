@@ -27,6 +27,7 @@ export interface PeerInfo {
   username: string
   timeline: PQ<Post>
   ownPosts: PQ<Post>
+  subscribed: Set<string>
 }
 
 export class Peer {
@@ -51,6 +52,8 @@ export class Peer {
   static async createPeerFromFields(peerFields: PeerInfo, boostrapers: Array<string>): Promise<Peer> {
     const peer = await this.createPeer(peerFields.username, boostrapers)
     peer.timeline = peerFields.timeline
+    peer.ownPosts = peerFields.ownPosts
+    peer.subscribed = peerFields.subscribed
     return peer
   }
 
@@ -105,7 +108,6 @@ export class Peer {
     this.node.pubsub.subscribe(topic)
     this.subscribed.add(topic)
   }
-
 
   unsubscribeTopic(topic: string) {
     this.node.pubsub.removeAllListeners(topic)

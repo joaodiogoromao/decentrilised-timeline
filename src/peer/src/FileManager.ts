@@ -14,7 +14,8 @@ export class FileManager {
     const peerInfo = {
       username: peer.username,
       timeline: peer.timeline.toArray(),
-      ownPosts: peer.ownPosts.toArray()
+      ownPosts: peer.ownPosts.toArray(),
+      subscribed: Array.from(peer.subscribed)
     }
 
     writeFile("storage/" + peer.username + ".json", JSON.stringify(peerInfo), function (err) {
@@ -38,13 +39,17 @@ export class FileManager {
         const peerInfo: PeerInfo = {
           username: object.username,
           timeline: new PriorityQueue({ comparator }),
-          ownPosts: new PriorityQueue({ comparator })
+          ownPosts: new PriorityQueue({ comparator }),
+          subscribed: new Set()
         }
         object.timeline.forEach((post: any) => {
           peerInfo.timeline.push(<Post>post)
         });
         object.ownPosts.forEach((post: any) => {
           peerInfo.ownPosts.push(<Post>post)
+        });
+        object.subscribed.forEach((sub: any) => {
+          peerInfo.subscribed.add(<string>sub)
         });
 
         resolve(peerInfo)
