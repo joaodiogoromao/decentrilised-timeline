@@ -43,6 +43,9 @@ export class FileManager {
         object.timeline.forEach((post: any) => {
           peerInfo.timeline.push(<Post>post)
         });
+        object.ownPosts.forEach((post: any) => {
+          peerInfo.ownPosts.push(<Post>post)
+        });
 
         resolve(peerInfo)
       })
