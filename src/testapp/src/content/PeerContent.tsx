@@ -48,7 +48,7 @@ export const PeerContent = ({ connection }: PeerContentProps) => {
     const subscribe = (username: string) => axios.put(connection.user(username))
     const unsubscribe = (username: string) => axios.delete(connection.user(username))
 
-    const clearTimeline = () => axios.delete(connection.timeline)
+    const clearTimeline = (numberOfPosts: number) => numberOfPosts != NaN ? axios.put(connection.postsToKeep(numberOfPosts)) : axios.delete(connection.timeline)
 
     const publish = (content: string) => axios.post(connection.post, content, { headers: { "content-type": "text/plain" } })
 

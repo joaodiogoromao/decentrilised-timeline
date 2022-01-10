@@ -6,6 +6,7 @@ export interface Connection {
     subscriptions: string,
     post: string,
     user: (user: string) => string
+    postsToKeep: (posts: number) => string
 }
 
 export const PeerEndpoints = (interfacePort: string): Connection => {
@@ -18,6 +19,7 @@ export const PeerEndpoints = (interfacePort: string): Connection => {
         username: global + "/username",
         subscriptions: global + "/subscriptions",
         post: global + "/post",
-        user: (username: string) => `${global}/user/${username}`
+        user: (username: string) => `${global}/user/${username}`,
+        postsToKeep: (posts: number) => `${global}/postsToKeep/${posts}`
     }
 }

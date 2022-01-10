@@ -126,6 +126,17 @@ export class Peer {
     this.timeline.push(post)
   }
 
+  removeOldPosts(postsToKeep: number) {
+    const comparator = Post.compare
+    const newQueue = new PriorityQueue({ comparator })
+
+    while (newQueue.length < postsToKeep && this.timeline.length > 0) {
+      newQueue.push(this.timeline.pop())
+    }
+
+    this.timeline = newQueue
+  }
+
   setupEventListeners() {
     this.node.connectionManager.on('peer:connect', async (connection: Connection) => {
       // console.log('Connection established to:', connection.remotePeer.toB58String())	// Emitted when a new connection has been created

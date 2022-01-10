@@ -12,6 +12,6 @@ export class Post {
   }
 
   static compare: Comparator<Post> = (p1: Post, p2: Post) => {
-    return p1.timestamp > p2.timestamp ? -1 : 1 // Sort by descending order (today appears before than yesterday)
+    return p1.timestamp < p2.timestamp ? -1 : 1 // Sort by descending order (today appears before than yesterday)
   }
 }

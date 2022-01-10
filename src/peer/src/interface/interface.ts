@@ -16,7 +16,7 @@ export const initInterface = (peer: Peer) => {
 
   // Get the peer's timeline
   app.get('/timeline', (_req, res) => {
-    res.send(peer.timeline.toArray())
+    res.send(peer.timeline.toArray().reverse())
   })
 
   // Clear timeline
@@ -61,6 +61,12 @@ export const initInterface = (peer: Peer) => {
   app.get('/user/:username', (req, res) => {
     Logger.log(LoggerTopics.INTERFACE, `(NOT IMPLEMENTED) Retrieving posts by '${req.params.username}'.`)
     res.send('NOT IMPLEMENTED')
+  })
+
+  app.put('/postsToKeep/:posts', (req, res) => {
+    Logger.log(LoggerTopics.INTERFACE, `Keeping ${req.params.posts} most recent posts.`)
+    peer.removeOldPosts(parseInt(req.params.posts))
+    res.send()
   })
 
   const server = app.listen(0, () => {
