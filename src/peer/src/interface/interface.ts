@@ -14,25 +14,32 @@ export const initInterface = (peer: Peer) => {
     res.send(peer.username)
   })
 
+<<<<<<< HEAD
   // Get the peer's timeline
   app.get('/timeline', (_req, res) => {
     res.send(peer.timeline.toArray().reverse())
+=======
+  // Get the peer's timeline, known users and subscriptions
+  app.get('/general', (_req, res) => {
+    res.send({
+      timeline: peer.timeline.toArray(),
+      users: Array.from(peer.users.keys()),
+      subscriptions: Array.from(peer.subscribed.keys())
+    })
+  })
+
+  // Get a user's posts (OPTIONAL)
+  app.get('/user/:username', (req, res) => {
+    Logger.log(LoggerTopics.INTERFACE, `(NOT IMPLEMENTED) Retrieving posts by '${req.params.username}'.`)
+    res.send('NOT IMPLEMENTED')
+>>>>>>> master
   })
 
   // Clear timeline
   app.delete('/timeline', (_req, res) => {
+    Logger.log(LoggerTopics.INTERFACE, `Clearing timeline.`)
     peer.timeline.clear()
     res.send()
-  })
-
-  // Get available users
-  app.get('/users', (_req, res) => {
-    res.send(Array.from(peer.users.keys()))
-  })
-
-  // Get subscriptions
-  app.get('/subscriptions', (_req, res) => {
-    res.send(Array.from(peer.subscribed.keys()))
   })
 
   // Unsubscribe from user

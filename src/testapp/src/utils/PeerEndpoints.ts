@@ -1,12 +1,19 @@
+import { Post } from "../content/TimelinePost"
+
 export interface Connection {
     global: string,
-    timeline: string,
-    users: string,
+    general: string,
     username: string,
-    subscriptions: string,
+    timeline: string,
     post: string,
     user: (user: string) => string
     postsToKeep: (posts: number) => string
+}
+
+export interface GeneralResponse {
+    timeline: Array<Post>,
+    users: Array<string>,
+    subscriptions: Array<string>
 }
 
 export const PeerEndpoints = (interfacePort: string): Connection => {
@@ -14,10 +21,9 @@ export const PeerEndpoints = (interfacePort: string): Connection => {
 
     return {
         global,
-        timeline: global + "/timeline",
-        users: global + "/users",
+        general: global + "/general",
         username: global + "/username",
-        subscriptions: global + "/subscriptions",
+        timeline: global + "/timeline",
         post: global + "/post",
         user: (username: string) => `${global}/user/${username}`,
         postsToKeep: (posts: number) => `${global}/postsToKeep/${posts}`
