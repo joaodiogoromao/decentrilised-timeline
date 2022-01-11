@@ -26,6 +26,8 @@ import { Logger, LoggerTopics } from './Logger'
 export interface PeerInfo {
   username: string
   timeline: PQ<Post>
+  ownPosts: PQ<Post>
+  subscribed: Set<string>
 }
 
 export class Peer {
@@ -36,18 +38,22 @@ export class Peer {
   users: Map<string, PeerId> = new Map()
   subscribed: Set<string> = new Set()
   timeline: PQ<Post>
+  ownPosts: PQ<Post>
 
   constructor(node: Libp2p, username: string) {
     this.node = node
     this.username = username
     const comparator = Post.compare
     this.timeline = new PriorityQueue({ comparator })
+    this.ownPosts = new PriorityQueue({ comparator })
     this.writeToFile(5)
   }
 
   static async createPeerFromFields(peerFields: PeerInfo, boostrapers: Array<string>): Promise<Peer> {
     const peer = await this.createPeer(peerFields.username, boostrapers)
     peer.timeline = peerFields.timeline
+    peer.ownPosts = peerFields.ownPosts
+    peer.subscribed = peerFields.subscribed
     return peer
   }
 
@@ -103,7 +109,6 @@ export class Peer {
     this.subscribed.add(topic)
   }
 
-
   unsubscribeTopic(topic: string) {
     this.node.pubsub.removeAllListeners(topic)
     this.node.pubsub.unsubscribe(topic)
@@ -115,7 +120,9 @@ export class Peer {
   }
 
   publish(message: string) {
-    this.sendMessage(this.username, JSON.stringify(new Post(this.username, message, new Date())))
+    const newPost = new Post(this.username, message, new Date())
+    this.sendMessage(this.username, JSON.stringify(newPost))
+    this.ownPosts.push(newPost)
   }
 
   addUser(username: string, id: PeerId) {
