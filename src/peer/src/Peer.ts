@@ -22,6 +22,7 @@ import { getUsername, sendReply } from './protocols'
 import { FileManager } from './FileManager'
 import { Multiaddr } from 'multiaddr'
 import { Logger, LoggerTopics } from './Logger'
+import { MessageExecutor } from './messages/MessageExecutor'
 
 export interface PeerInfo {
   username: string
@@ -101,9 +102,10 @@ export class Peer {
 
   subscribeTopic(topic: string) {
     this.node.pubsub.on(topic, (msg) => {
-      const post: Post = JSON.parse(this.textDecoder.decode(msg.data))
-      this.addPost(post)
-      Logger.log(LoggerTopics.COMMS, `Received message from '${topic}': '${post.content}'.`)
+      new MessageExecutor(msg, topic, this).execute()
+      // const post: Post = JSON.parse(this.textDecoder.decode(msg.data))
+      // this.addPost(post)
+      // Logger.log(LoggerTopics.COMMS, `Received message from '${topic}': '${post.content}'.`)
     })
     this.node.pubsub.subscribe(topic)
     this.subscribed.add(topic)
@@ -116,7 +118,7 @@ export class Peer {
   }
 
   sendMessage(topic: string, message: string) {
-    this.node.pubsub.publish(topic, this.textEncoder.encode(message))
+    this.node.pubsub.publish(topic, this.textEncoder.encode("POST\n\r" + message))
   }
 
   publish(message: string) {
