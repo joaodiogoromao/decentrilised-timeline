@@ -14,15 +14,10 @@ export const initInterface = (peer: Peer) => {
     res.send(peer.username)
   })
 
-<<<<<<< HEAD
-  // Get the peer's timeline
-  app.get('/timeline', (_req, res) => {
-    res.send(peer.timeline.toArray().reverse())
-=======
   // Get the peer's timeline, known users and subscriptions
   app.get('/general', (_req, res) => {
     res.send({
-      timeline: peer.timeline.toArray(),
+      timeline: peer.timeline.toArray().reverse(),
       users: Array.from(peer.users.keys()),
       subscriptions: Array.from(peer.subscribed.keys())
     })
@@ -32,7 +27,6 @@ export const initInterface = (peer: Peer) => {
   app.get('/user/:username', (req, res) => {
     Logger.log(LoggerTopics.INTERFACE, `(NOT IMPLEMENTED) Retrieving posts by '${req.params.username}'.`)
     res.send('NOT IMPLEMENTED')
->>>>>>> master
   })
 
   // Clear timeline
