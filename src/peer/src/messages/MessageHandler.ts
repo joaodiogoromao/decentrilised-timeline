@@ -1,7 +1,7 @@
 import { Peer } from "../Peer"
 
 
-export abstract class Message {
+export abstract class MessageHandler {
     message: string[]
 
     constructor(message: string[]) {

@@ -1,10 +1,10 @@
 import { Logger, LoggerTopics } from "../Logger";
 import { Peer } from "../Peer";
 import { Post } from "../Post";
-import { Message } from "./MessageHandler";
+import { MessageHandler } from "./MessageHandler";
 
 // POST postContent
-export class PostHandler extends Message {
+export class PostHandler extends MessageHandler {
     post: Post
 
     constructor(message: string[], topic: string) {
@@ -15,12 +15,10 @@ export class PostHandler extends Message {
         }
         
         this.post = JSON.parse(message[1])
-        console.log(this.post)
         Logger.log(LoggerTopics.COMMS, `Received message from '${topic}': '${this.post.content}'.`)
     }
 
     execute(peer: Peer): void {
-        console.log("#### executing post handler")
         peer.addPost(this.post)
     }
 }

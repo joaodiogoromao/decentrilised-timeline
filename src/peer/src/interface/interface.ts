@@ -39,14 +39,14 @@ export const initInterface = (peer: Peer) => {
   // Unsubscribe from user
   app.delete('/user/:username', (req, res) => {
     Logger.log(LoggerTopics.INTERFACE, `Unsubscribing from '${req.params.username}'.`)
-    peer.unsubscribeTopic(req.params.username)
+    peer.unsubscribeUser(req.params.username)
     res.send()
   })
 
   // Subscribe to user
   app.put('/user/:username', (req, res) => {
     Logger.log(LoggerTopics.INTERFACE, `Subscribing to '${req.params.username}'.`)
-    peer.subscribeTopic(req.params.username)
+    peer.subscribeUser(req.params.username)
     res.send()
   })
 

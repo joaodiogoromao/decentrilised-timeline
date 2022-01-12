@@ -18,11 +18,12 @@ import delay from 'delay'
 import PriorityQueue from 'priorityqueue'
 import { PriorityQueue as PQ } from 'priorityqueue/lib/cjs/PriorityQueue'
 import { Post } from './Post'
-import { getUsername, sendReply } from './protocols'
+import { getUsername, readFromStream, writeToStream } from './protocols'
 import { FileManager } from './FileManager'
 import { Multiaddr } from 'multiaddr'
 import { Logger, LoggerTopics } from './Logger'
 import { MessageExecutor } from './messages/MessageExecutor'
+import { FindMessage } from './messages/FindHandler'
 
 export interface PeerInfo {
   username: string
@@ -30,6 +31,17 @@ export interface PeerInfo {
   ownPosts: PQ<Post>
   subscribed: Set<string>
 }
+
+export interface PubsubMessage {
+  topicIDs: string[],
+  from: string,
+  data: Buffer,
+  seqno: Buffer,
+  signature: Buffer,
+  key: Buffer,
+  receivedFrom: string
+}
+
 
 export class Peer {
   node: Libp2p;
@@ -55,6 +67,12 @@ export class Peer {
     peer.timeline = peerFields.timeline
     peer.ownPosts = peerFields.ownPosts
     peer.subscribed = peerFields.subscribed
+
+    for (const user of Array.from(peer.subscribed)) {
+      peer.subscribeUser(user)
+      peer.startFindProtocol(user)
+    }
+    
     return peer
   }
 
@@ -100,31 +118,71 @@ export class Peer {
     return new Peer(node, username)
   }
 
-  subscribeTopic(topic: string) {
-    this.node.pubsub.on(topic, (msg) => {
-      new MessageExecutor(msg, topic, this).execute()
-      // const post: Post = JSON.parse(this.textDecoder.decode(msg.data))
-      // this.addPost(post)
-      // Logger.log(LoggerTopics.COMMS, `Received message from '${topic}': '${post.content}'.`)
+  subscribeUser(user: string) {
+    this.node.pubsub.on(user, (message: PubsubMessage) => {
+      console.log("-----> ", message)
+      new MessageExecutor(message, user, this).execute()
     })
-    this.node.pubsub.subscribe(topic)
-    this.subscribed.add(topic)
+    this.node.pubsub.subscribe(user)
+    this.subscribed.add(user)
   }
 
-  unsubscribeTopic(topic: string) {
-    this.node.pubsub.removeAllListeners(topic)
-    this.node.pubsub.unsubscribe(topic)
-    this.subscribed.delete(topic)
+  unsubscribeUser(user: string) {
+    this.node.pubsub.removeAllListeners(user)
+    this.node.pubsub.unsubscribe(user)
+    this.subscribed.delete(user)
   }
 
-  sendMessage(topic: string, message: string) {
-    this.node.pubsub.publish(topic, this.textEncoder.encode("POST\n\r" + message))
+  sendMessage(topic: string, messageType: string, message: string) {
+    console.log("'" + topic + "'")
+    this.node.pubsub.publish(topic, this.textEncoder.encode(messageType + "\n\r" + message))
   }
 
   publish(message: string) {
     const newPost = new Post(this.username, message, new Date())
-    this.sendMessage(this.username, JSON.stringify(newPost))
+    this.sendMessage(this.username, "POST", JSON.stringify(newPost))
     this.ownPosts.push(newPost)
+  }
+
+  async startFindProtocol(user: string) {
+    const findMessage: FindMessage = {
+      user,
+      timestamp: new Date(2018, 11, 24, 10, 33, 30, 0),
+      peerId: this.node.peerId.toB58String()
+    }
+
+    await delay(3000)
+
+    console.log("Sending find message")
+    console.log(findMessage)
+    this.sendMessage(user, "FIND", JSON.stringify(findMessage))
+    console.log("Message sent!")
+  }
+
+  async sendFoundPosts(user: string, timestamp: Date, peerId: PeerId) {
+    const posts = this.findSubsequentPosts(user, timestamp)
+
+    // randomDelay()
+
+    // checkControlChannel() # sent posts #1 and #2 to peer x
+
+    console.log("Sending found posts")
+
+    const { stream } = await this.node.dialProtocol(peerId, "/posts-receiver")
+    writeToStream(JSON.stringify(posts), stream)
+  }
+
+  findSubsequentPosts(user: string, timestamp: Date): Post[] {
+    let posts: Post[] = []
+    for (const post of this.timeline.toArray()) {
+      if (post.timestamp > timestamp && post.user == user) {
+        posts.push()
+      }
+      if (post.timestamp <= timestamp) {
+        break
+      }
+    }
+    return posts
   }
 
   addUser(username: string, id: PeerId) {
@@ -145,7 +203,14 @@ export class Peer {
     })
 
     this.node.handle('/username', async ({ stream }) => {
-      await sendReply(this.username, stream)
+      await writeToStream(this.username, stream)
+    })
+
+    this.node.handle('/posts-receiver', async ({ stream }) => {
+      const text = await readFromStream(stream)
+      const posts: Array<Post> = JSON.parse(text)
+      
+      console.log(posts)
     })
   }
 

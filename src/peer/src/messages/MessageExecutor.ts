@@ -1,33 +1,30 @@
 import { Logger } from "../Logger";
-import { Peer } from "../Peer";
+import { Peer, PubsubMessage } from "../Peer";
 import { FindHandler } from "./FindHandler";
-import { Message } from "./MessageHandler";
+import { MessageHandler } from "./MessageHandler";
 import { PostHandler } from "./PostHandler";
 
 import { TextDecoder, TextEncoder } from "util"
 
 export class MessageExecutor {
-    messageObj: any
+    pubsubMessage: PubsubMessage
     rawMessage: string
-    message: Message
+    message: MessageHandler
     peer: Peer
     topic: string 
     textDecoder = new TextDecoder()
     textEncoder = new TextEncoder()
 
-    constructor(messageObj: any, topic: string, peer: Peer) {
-        this.messageObj = messageObj
-        this.rawMessage = this.textDecoder.decode(messageObj.data)
+    constructor(pubsubMessage: PubsubMessage, topic: string, peer: Peer) {
+        this.pubsubMessage = pubsubMessage
+        this.rawMessage = this.textDecoder.decode(pubsubMessage.data)
         this.message = this.parseMessage()
         this.peer = peer
         this.topic = topic
-
-        console.log(peer)
     }
 
-    parseMessage(): Message {
+    parseMessage(): MessageHandler {
         const splitted = this.rawMessage.split("\n\r")
-        console.log(splitted)
         const messageId = splitted[0]
 
         if (messageId == "POST") {
@@ -35,14 +32,12 @@ export class MessageExecutor {
         } else if (messageId == "FIND") {
             return new FindHandler(splitted)
         } else {
-            Logger.log("MESSAGES", `Received unknown message: ${this.messageObj}`)
+            Logger.log("MESSAGES", `Received unknown message: ${this.pubsubMessage.data}`)
             throw new Error('Ooops')
         }
     }
 
     execute(): void {
-        console.log("Executing....")
-        console.log(this.message)
         this.message.execute(this.peer)
     }
 }
