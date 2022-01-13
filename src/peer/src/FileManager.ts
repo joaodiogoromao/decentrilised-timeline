@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, writeFile, readFile } from 'fs'
 import PriorityQueue from 'priorityqueue'
 import { Peer, PeerInfo } from './Peer'
-import { Post } from './Post'
+import { Post, PostJSONObject } from './Post'
 
 export class FileManager {
   static createFile() {
@@ -42,14 +42,14 @@ export class FileManager {
           ownPosts: new PriorityQueue({ comparator }),
           subscribed: new Set()
         }
-        object.timeline.forEach((post: any) => {
-          peerInfo.timeline.push(<Post>post)
+        object.timeline.forEach((post: PostJSONObject) => {
+          peerInfo.timeline.push(Post.createFromObject(post))
         });
-        object.ownPosts.forEach((post: any) => {
-          peerInfo.ownPosts.push(<Post>post)
+        object.ownPosts.forEach((post: PostJSONObject) => {
+          peerInfo.ownPosts.push(Post.createFromObject(post))
         });
-        object.subscribed.forEach((sub: any) => {
-          peerInfo.subscribed.add(<string>sub)
+        object.subscribed.forEach((sub: string) => {
+          peerInfo.subscribed.add(sub)
         });
 
         resolve(peerInfo)

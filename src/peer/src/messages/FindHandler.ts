@@ -5,7 +5,7 @@ import PeerId from 'peer-id'
 
 export interface FindMessage {
     user: string,
-    timestamp: Date,
+    timestamp: Date | string,
     peerId: string
 }
 
@@ -22,11 +22,12 @@ export class FindHandler extends MessageHandler {
             throw new Error('Ooops')
         }
 
-        console.log("Received find message")
-
         const findMessage: FindMessage = JSON.parse(message[1])
+
+        Logger.log("FIND", "Received find message", findMessage)
+
         this.user = findMessage.user
-        this.timestamp = findMessage.timestamp
+        this.timestamp = new Date(findMessage.timestamp)
         this.peerId = PeerId.createFromB58String(findMessage.peerId)
     }
 

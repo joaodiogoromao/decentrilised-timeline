@@ -14,11 +14,11 @@ export class PostHandler extends MessageHandler {
             throw new Error('Ooops')
         }
         
-        this.post = JSON.parse(message[1])
+        this.post = Post.createFromJSON(message[1])
         Logger.log(LoggerTopics.COMMS, `Received message from '${topic}': '${this.post.content}'.`)
     }
 
     execute(peer: Peer): void {
-        peer.addPost(this.post)
+        peer.addPostToTimeline(this.post)
     }
 }

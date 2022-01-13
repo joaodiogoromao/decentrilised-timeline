@@ -1,5 +1,11 @@
 import { Comparator } from 'priorityqueue/lib/cjs/comparator'
 
+export interface PostJSONObject {
+  user: string,
+  content: string,
+  timestamp: string
+}
+
 export class Post {
   user: string
   content: string
@@ -12,6 +18,14 @@ export class Post {
   }
 
   static compare: Comparator<Post> = (p1: Post, p2: Post) => {
-    return p1.timestamp > p2.timestamp ? -1 : 1 // Sort by descending order (today appears before than yesterday)
+    return p1.timestamp < p2.timestamp ? -1 : 1 // Sort by descending order (today appears before than yesterday)
+  }
+
+  static createFromObject(post: PostJSONObject) {
+    return new Post(post.user, post.content, new Date(post.timestamp))
+  }
+
+  static createFromJSON(post: string) {
+    return Post.createFromObject(JSON.parse(post))
   }
 }
