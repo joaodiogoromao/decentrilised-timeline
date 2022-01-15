@@ -1,4 +1,5 @@
 import { Comparator } from 'priorityqueue/lib/cjs/comparator'
+import crypto from 'crypto'
 
 export interface PostJSONObject {
   user: string,
@@ -10,11 +11,13 @@ export class Post {
   user: string
   content: string
   timestamp: Date
+  id: string
 
   constructor(user: string, content: string, timestamp: Date) {
     this.user = user
     this.content = content
     this.timestamp = timestamp
+    this.id = crypto.createHash('sha1').update(user + content + timestamp.toString()).digest('hex');
   }
 
   static compare: Comparator<Post> = (p1: Post, p2: Post) => {

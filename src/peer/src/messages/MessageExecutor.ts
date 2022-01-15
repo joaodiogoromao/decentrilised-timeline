@@ -1,17 +1,18 @@
 import { Logger } from "../Logger";
 import { Peer, PubsubMessage } from "../Peer";
 import { FindHandler } from "./FindHandler";
-import { MessageHandler } from "./MessageHandler";
+import { MessageHandler, MessageType } from "./MessageHandler";
 import { PostHandler } from "./PostHandler";
 
 import { TextDecoder, TextEncoder } from "util"
+import { SendingHandler } from "./SendingHandler";
 
 export class MessageExecutor {
     pubsubMessage: PubsubMessage
     rawMessage: string
     message: MessageHandler
     peer: Peer
-    topic: string 
+    topic: string
     textDecoder = new TextDecoder()
     textEncoder = new TextEncoder()
 
@@ -27,10 +28,12 @@ export class MessageExecutor {
         const splitted = this.rawMessage.split("\n\r")
         const messageId = splitted[0]
 
-        if (messageId == "POST") {
+        if (messageId == MessageType.POST) {
             return new PostHandler(splitted, this.topic)
-        } else if (messageId == "FIND") {
+        } else if (messageId == MessageType.FIND) {
             return new FindHandler(splitted)
+        } else if (messageId == MessageType.SENDING) {
+            return new SendingHandler(splitted)
         } else {
             Logger.log("MESSAGES", `Received unknown message: ${this.pubsubMessage.data}`)
             throw new Error('Ooops')
