@@ -1,7 +1,15 @@
 import { existsSync, mkdirSync, writeFile, readFile } from 'fs'
-import PriorityQueue from 'priorityqueue'
 import { Peer, PeerInfo } from './Peer'
 import { Post, PostJSONObject } from './Post'
+import { CustomPriorityQueue } from './timeline/CustomPriorityQueue'
+
+interface PeerInfoStore {
+  username: string,
+  timelineQueue: Array<PostJSONObject|Post>,
+  timelineSet: Array<string>,
+  ownPosts: Array<PostJSONObject|Post>,
+  subscribed: Array<string>
+}
 
 export class FileManager {
   static createFile() {
@@ -11,10 +19,11 @@ export class FileManager {
   }
 
   static async storeInfo(peer: Peer) {
-    const peerInfo = {
+    const peerInfo: PeerInfoStore = {
       username: peer.username,
-      timeline: peer.timeline.toArray(),
-      ownPosts: peer.ownPosts.toArray(),
+      timelineQueue: peer.timeline.queue.toArray(),
+      timelineSet: Array.from(peer.timeline.set),
+      ownPosts: peer.ownPosts,
       subscribed: Array.from(peer.subscribed)
     }
 
@@ -34,23 +43,20 @@ export class FileManager {
           return reject(error)
         }
 
-        const object = JSON.parse(data.toString())
-        const comparator = Post.compare
+        const object: PeerInfoStore = JSON.parse(data.toString())
         const peerInfo: PeerInfo = {
           username: object.username,
-          timeline: new PriorityQueue({ comparator }),
-          ownPosts: new PriorityQueue({ comparator }),
+          timelineQueue: new CustomPriorityQueue(Post.compare, object.timelineQueue.map(post => Post.createFromObject(post as PostJSONObject))),
+          timelineSet: new Set(),
+          ownPosts: object.ownPosts.map(post => Post.createFromObject(post as PostJSONObject)),
           subscribed: new Set()
         }
-        object.timeline.forEach((post: PostJSONObject) => {
-          peerInfo.timeline.push(Post.createFromObject(post))
-        });
-        object.ownPosts.forEach((post: PostJSONObject) => {
-          peerInfo.ownPosts.push(Post.createFromObject(post))
-        });
+        object.timelineSet.forEach((postId: string) => {
+          peerInfo.timelineSet.add(postId)
+        })
         object.subscribed.forEach((sub: string) => {
           peerInfo.subscribed.add(sub)
-        });
+        })
 
         resolve(peerInfo)
       })

@@ -17,7 +17,7 @@ export const initInterface = (peer: Peer) => {
   // Get the peer's timeline, known users and subscriptions
   app.get('/general', (_req, res) => {
     res.send({
-      timeline: peer.timeline.toArray().reverse(),
+      timeline: peer.timeline.toArray(),
       users: Array.from(peer.users.keys()),
       subscriptions: Array.from(peer.subscribed.keys())
     })

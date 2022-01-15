@@ -15,8 +15,6 @@ import createRelayServer from 'libp2p-relay-server'
 import { TextEncoder, TextDecoder } from 'util'
 import PeerId from 'peer-id'
 import delay from 'delay'
-import PriorityQueue from 'priorityqueue'
-import { PriorityQueue as PQ } from 'priorityqueue/lib/cjs/PriorityQueue'
 import { Post, PostJSONObject } from './Post'
 import { getUsername, readFromStream, writeToStream } from './protocols'
 import { FileManager } from './FileManager'
@@ -27,11 +25,14 @@ import { FindMessage } from './messages/FindHandler'
 import { MessageType } from './messages/MessageHandler'
 import { SendingMessage } from './messages/SendingHandler'
 import { SendingMessageMonitor } from './SendingMessageMonitor'
+import { Timeline } from './timeline/Timeline'
+import { CustomPriorityQueue } from './timeline/CustomPriorityQueue'
 
 export interface PeerInfo {
   username: string
-  timeline: PQ<Post>
-  ownPosts: PQ<Post>
+  timelineQueue: CustomPriorityQueue<Post>
+  timelineSet: Set<string>
+  ownPosts: Array<Post>
   subscribed: Set<string>
 }
 
@@ -45,7 +46,6 @@ export interface PubsubMessage {
   receivedFrom: string
 }
 
-
 export class Peer {
   node: Libp2p;
   username: string;
@@ -53,24 +53,24 @@ export class Peer {
   textEncoder = new TextEncoder()
   users: Map<string, PeerId> = new Map()
   subscribed: Set<string> = new Set()
-  timeline: PQ<Post>
-  ownPosts: PQ<Post>
+  timeline = new Timeline()
+  ownPosts = new Array<Post>()
   sendingMessageMonitor = new SendingMessageMonitor()
 
   constructor(node: Libp2p, username: string) {
     this.node = node
     this.username = username
-    const comparator = Post.compare
-    this.timeline = new PriorityQueue({ comparator })
-    this.ownPosts = new PriorityQueue({ comparator })
     this.writeToFile(5)
   }
 
   static async createPeerFromFields(peerFields: PeerInfo, boostrapers: Array<string>): Promise<Peer> {
     const peer = await this.createPeer(peerFields.username, boostrapers)
-    peer.timeline = peerFields.timeline
+    peer.timeline.queue = peerFields.timelineQueue
+    peer.timeline.set = peerFields.timelineSet
     peer.ownPosts = peerFields.ownPosts
     peer.subscribed = peerFields.subscribed
+
+    console.log("---------------------\nRead from storage:\n", peer.timeline, peer.ownPosts, peer.subscribed, "\n---------------------")
 
     for (const user of Array.from(peer.subscribed))
       peer.subscribeUser(user, true)
@@ -202,7 +202,7 @@ export class Peer {
     const posts: Post[] = []
     const timelineArray = this.timeline.toArray()
 
-    for (let i = Object.keys(timelineArray).length - 1; i >= 0; --i) {
+    for (let i = 0; i < timelineArray.length; i++) {
       const post = timelineArray[i]
 
       if (post.timestamp > timestamp && post.user == user)
