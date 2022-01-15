@@ -141,16 +141,37 @@ export class Peer {
   }
 
   publish(message: string) {
-    const newPost = new Post(this.username, message, new Date())
+    const newPost = new Post(this.username, message, new Date(new Date().toString()))
     this.sendMessage(this.username, MessageType.POST, JSON.stringify(newPost))
     this.ownPosts.push(newPost)
   }
 
   async startFindProtocol(user: string, useDelay = false, getAll: boolean = false) {
+    const timestamp = this.timeline.isEmpty() || getAll ? new Date(2000, 1) : this.timeline.peek().timestamp
+
+    if (this.users.has(user)) {
+      try {
+        const { stream } = await this.node.dialProtocol(this.users.get(user) as PeerId, "/get-posts")
+        writeToStream(timestamp.toString(), stream)
+
+        const posts = (JSON.parse(await readFromStream(stream)) as Array<PostJSONObject>)
+                        .map(post => Post.createFromObject(post))
+
+        console.log("Received posts directly from user", posts)
+
+        for (const post of posts)
+          this.addPostToTimeline(post)
+
+        return
+      } catch (_e) {
+        console.log(`Couldn't reach ${user}, trying its subscribers!`)
+      }
+    }
+
     const findMessage: FindMessage = {
       user,
       requester: this.username,
-      timestamp: this.timeline.isEmpty() || getAll ? new Date(2000, 1) : this.timeline.peek().timestamp,
+      timestamp,
       peerId: this.node.peerId.toB58String()
     }
 
@@ -233,14 +254,27 @@ export class Peer {
       await writeToStream(this.username, stream)
     })
 
+    this.node.handle('/get-posts', async ({ stream }) => {
+      const timestamp = new Date(await readFromStream(stream))
+      const postsReply = []
+
+      for (let i = this.ownPosts.length - 1; i >= 0; i--) {
+        if (this.ownPosts[i].timestamp > timestamp) postsReply.push(this.ownPosts[i])
+        else break
+      }
+
+      console.log("Sending posts from timestamp", timestamp, postsReply)
+
+      await writeToStream(JSON.stringify(postsReply), stream)
+    })
+
     this.node.handle('/posts-receiver', async ({ stream }) => {
       const text = await readFromStream(stream)
       const posts: Array<Post> = JSON.parse(text).map((post: PostJSONObject) => Post.createFromObject(post))
 
       console.log("Received posts", posts)
-      for (const post of posts) {
+      for (const post of posts)
         this.addPostToTimeline(post)
-      }
     })
   }
 
