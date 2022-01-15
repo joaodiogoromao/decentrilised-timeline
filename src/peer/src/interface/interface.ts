@@ -1,6 +1,6 @@
 import express from 'express'
 import cors from 'cors'
-import { Logger, LoggerTopics } from '../Logger'
+import { Logger, LoggerTopics } from '../utils/Logger'
 import { Peer } from '../Peer'
 import bodyParser from 'body-parser'
 

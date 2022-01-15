@@ -12,9 +12,9 @@ import Websockets from 'libp2p-websockets'
 
 import { exit } from 'process'
 import { initInterface } from './interface/interface'
-import { FileManager } from './FileManager'
+import { FileManager } from './utils/FileManager'
 import { Peer } from './Peer'
-import { Logger, LoggerTopics } from './Logger'
+import { Logger, LoggerTopics } from './utils/Logger'
 
 const checkArgs = () => {
   if (process.argv.length < 3) {

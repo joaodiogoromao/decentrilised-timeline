@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, writeFile, readFile } from 'fs'
-import { Peer, PeerInfo } from './Peer'
-import { Post, PostJSONObject } from './Post'
-import { CustomPriorityQueue } from './timeline/CustomPriorityQueue'
+import { Peer, PeerInfo } from '../Peer'
+import { Post, PostJSONObject } from '../Post'
+import { CustomPriorityQueue } from '../timeline/CustomPriorityQueue'
 
 interface PeerInfoStore {
   username: string,

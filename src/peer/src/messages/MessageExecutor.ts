@@ -1,4 +1,4 @@
-import { Logger } from "../Logger";
+import { Logger } from "../utils/Logger";
 import { Peer, PubsubMessage } from "../Peer";
 import { FindHandler } from "./FindHandler";
 import { MessageHandler, MessageType } from "./MessageHandler";

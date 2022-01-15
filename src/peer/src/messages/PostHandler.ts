@@ -1,4 +1,4 @@
-import { Logger, LoggerTopics } from "../Logger";
+import { Logger, LoggerTopics } from "../utils/Logger";
 import { Peer } from "../Peer";
 import { Post } from "../Post";
 import { MessageHandler, MessageType } from "./MessageHandler";

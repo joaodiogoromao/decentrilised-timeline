@@ -1,4 +1,4 @@
-import { Logger } from "../Logger";
+import { Logger } from "../utils/Logger";
 import { Peer } from "../Peer";
 import { MessageHandler, MessageType } from "./MessageHandler";
 import PeerId from 'peer-id'
