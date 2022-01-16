@@ -65,8 +65,8 @@ export class Peer {
 
   static async createPeerFromFields(peerFields: PeerInfo, boostrapers: Array<string>): Promise<Peer> {
     const peer = await this.createPeer(peerFields.username, boostrapers)
-    peer.timeline.queue = peerFields.timelineQueue
-    peer.timeline.set = peerFields.timelineSet
+    peer.timeline.setQueue(peerFields.timelineQueue)
+    peer.timeline.setSet(peerFields.timelineSet)
     peer.ownPosts = peerFields.ownPosts
     peer.subscribed = peerFields.subscribed
 
@@ -147,7 +147,8 @@ export class Peer {
   }
 
   async startFindProtocol(user: string, useDelay = false, getAll: boolean = false) {
-    const timestamp = this.timeline.isEmpty() || getAll ? new Date(2000, 1) : this.timeline.peek().timestamp
+    const mostRecent = this.timeline.getMostRecent(user)
+    const timestamp = mostRecent === undefined || getAll ? new Date(2000, 1) : mostRecent
 
     if (useDelay) await delay(3000)
 

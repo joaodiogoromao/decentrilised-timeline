@@ -21,8 +21,8 @@ export class FileManager {
   static async storeInfo(peer: Peer) {
     const peerInfo: PeerInfoStore = {
       username: peer.username,
-      timelineQueue: peer.timeline.queue.toArray(),
-      timelineSet: Array.from(peer.timeline.set),
+      timelineQueue: peer.timeline.getQueue().toArray(),
+      timelineSet: Array.from(peer.timeline.getSet()),
       ownPosts: peer.ownPosts,
       subscribed: Array.from(peer.subscribed)
     }
