@@ -152,7 +152,18 @@ export class Peer {
     if (useDelay) await delay(3000)
 
     // if this peer knows the user's address, request posts directly from him
-    if (this.users.has(user) && this.requestPostsFromUser(user, timestamp)) return
+    if (this.users.has(user)) {
+      const posts = await this.requestPostsFromUser(user, timestamp)
+
+      if (posts != undefined) {
+        console.log("Received posts directly from user", posts)
+
+        for (const post of posts)
+          this.addPostToTimeline(post)
+
+        return
+      }
+    }
 
     // else send message to the user's subscribers
     console.log(`Couldn't reach ${user}, trying its subscribers!`)
@@ -169,25 +180,18 @@ export class Peer {
   }
 
   // returns true if the posts were obtained, false otherwise
-  async requestPostsFromUser(user: string, timestamp: Date): Promise<boolean> {
+  async requestPostsFromUser(user: string, timestamp: Date): Promise<Array<Post>|undefined> {
     try {
 
       const { stream } = await this.node.dialProtocol(this.users.get(user) as PeerId, "/get-posts")
       writeToStream(timestamp.toString(), stream)
 
-      const posts = (JSON.parse(await readFromStream(stream)) as Array<PostJSONObject>)
+      return (JSON.parse(await readFromStream(stream)) as Array<PostJSONObject>)
                       .map(post => Post.createFromObject(post))
-
-      console.log("Received posts directly from user", posts)
-
-      for (const post of posts)
-        this.addPostToTimeline(post)
-
-      return true
 
     } catch (_e) {}
 
-    return false
+    return undefined
   }
 
   private publishSendingMessage(user: string, receiver: string, sendingIds: string[]) {

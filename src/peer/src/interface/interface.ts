@@ -24,9 +24,10 @@ export const initInterface = (peer: Peer) => {
   })
 
   // Get a user's posts (OPTIONAL)
-  app.get('/user/:username', (req, res) => {
-    Logger.log(LoggerTopics.INTERFACE, `(NOT IMPLEMENTED) Retrieving posts by '${req.params.username}'.`)
-    res.send('NOT IMPLEMENTED')
+  app.get('/user/:username', async (req, res) => {
+    Logger.log(LoggerTopics.INTERFACE, `Retrieving posts by '${req.params.username}'.`)
+    const posts = await peer.requestPostsFromUser(req.params.username, new Date(2000, 1))
+    res.send(posts)
   })
 
   // Clear timeline
