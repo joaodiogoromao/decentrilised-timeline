@@ -1,6 +1,6 @@
 import express from 'express'
 import cors from 'cors'
-import { Logger, LoggerTopics } from '../Logger'
+import { Logger, LoggerTopics } from '../utils/Logger'
 import { Peer } from '../Peer'
 import bodyParser from 'body-parser'
 
@@ -24,9 +24,10 @@ export const initInterface = (peer: Peer) => {
   })
 
   // Get a user's posts (OPTIONAL)
-  app.get('/user/:username', (req, res) => {
-    Logger.log(LoggerTopics.INTERFACE, `(NOT IMPLEMENTED) Retrieving posts by '${req.params.username}'.`)
-    res.send('NOT IMPLEMENTED')
+  app.get('/user/:username', async (req, res) => {
+    Logger.log(LoggerTopics.INTERFACE, `Retrieving posts by '${req.params.username}'.`)
+    const posts = await peer.requestPostsFromUser(req.params.username, new Date(2000, 1))
+    res.send(posts)
   })
 
   // Clear timeline
@@ -39,14 +40,14 @@ export const initInterface = (peer: Peer) => {
   // Unsubscribe from user
   app.delete('/user/:username', (req, res) => {
     Logger.log(LoggerTopics.INTERFACE, `Unsubscribing from '${req.params.username}'.`)
-    peer.unsubscribeTopic(req.params.username)
+    peer.unsubscribeUser(req.params.username)
     res.send()
   })
 
   // Subscribe to user
   app.put('/user/:username', (req, res) => {
     Logger.log(LoggerTopics.INTERFACE, `Subscribing to '${req.params.username}'.`)
-    peer.subscribeTopic(req.params.username)
+    peer.subscribeUser(req.params.username)
     res.send()
   })
 

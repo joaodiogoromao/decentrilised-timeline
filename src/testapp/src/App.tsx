@@ -1,8 +1,11 @@
+import React from 'react'
 import { useEffect, useState } from 'react'
 import { PeerContent } from './content/PeerContent'
 import { Layout } from './utils/Layout'
-import { PeerEndpoints } from './utils/PeerEndpoints'
+import { Connection, PeerEndpoints } from './utils/PeerEndpoints'
 import { RequireConnection } from './utils/RequireConnection'
+
+export const EndpointContext = React.createContext<Connection | undefined>(undefined)
 
 export const App = () => {
     const [interfacePort, setInterfacePort] = useState("")
@@ -26,9 +29,11 @@ export const App = () => {
         
         { interfacePort !== "" ? <>
             <input type="button" value="Close peer" onClick={ () => { setInterfacePort(""); window.location.search = ""; } } />
-            <RequireConnection endpoint={PeerEndpoints(interfacePort).username}>
-                <PeerContent connection={PeerEndpoints(interfacePort)} />
-            </RequireConnection>
+            <EndpointContext.Provider value={PeerEndpoints(interfacePort)}>
+                <RequireConnection endpoint={PeerEndpoints(interfacePort).username}>
+                    <PeerContent />
+                </RequireConnection>
+            </EndpointContext.Provider>
         </>
         : <p>Waiting for port...</p> }
     </Layout>

@@ -62,14 +62,17 @@ input, textarea {
   border: 1px solid rgb(18, 93, 163);
 }
 
-input[type=button] {
+input[type=button], button {
   background-color: rgb(73, 160, 241);
   color: white;
   cursor: pointer;
   transition: background-color .15s;
+  padding: .3rem .6rem .3rem .6rem;
+  border-radius: .3rem;
+  border: 1px solid rgb(18, 93, 163);
 }
 
-input[type=button]:hover {
+input[type=button]:hover, button:hover {
   background-color: rgb(18, 93, 163);
 }
 
@@ -100,4 +103,31 @@ input[type=button]:hover {
 
 .timeline-post > div > p:first-of-type {
   flex-grow: 1;
+}
+
+.modal-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5)
+}
+
+.modal {
+  color: black;
+  position: absolute;
+  top: 10vh;
+  left: 30vw;
+  width: 40vw;
+  height: 80vh;
+  background-color: white;
+  border-radius: 2rem;
+  padding: 2rem;
+}
+
+.close-button-container {
+  display: flex;
+  justify-items: flex-end;
+  text-align: right;
 }
