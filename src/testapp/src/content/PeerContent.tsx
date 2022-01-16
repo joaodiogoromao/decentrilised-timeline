@@ -6,15 +6,14 @@ import { Connection, GeneralResponse } from '../utils/PeerEndpoints'
 import { ConnectionContext } from '../utils/RequireConnection'
 import { PostPublisher } from './PostPublisher'
 import { Post } from './TimelinePost'
+import { EndpointContext } from '../App'
 
-export interface PeerContentProps {
-    connection: Connection
-}
 
-export const PeerContent = ({ connection }: PeerContentProps) => {
+export const PeerContent = () => {
     const [timeline, setTimeline] = useState<Array<Post> | null>(null)
     const [users, setUsers] = useState<Map<string, boolean> | null>(null)
 
+    const connection = useContext(EndpointContext) as Connection;
     const username = useContext(ConnectionContext);
 
     document.title = username;

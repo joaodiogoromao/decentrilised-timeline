@@ -15,17 +15,35 @@ import createRelayServer from 'libp2p-relay-server'
 import { TextEncoder, TextDecoder } from 'util'
 import PeerId from 'peer-id'
 import delay from 'delay'
-import PriorityQueue from 'priorityqueue'
-import { PriorityQueue as PQ } from 'priorityqueue/lib/cjs/PriorityQueue'
-import { Post } from './Post'
-import { getUsername, sendReply } from './protocols'
-import { FileManager } from './FileManager'
+import { Post, PostJSONObject } from './Post'
+import { getUsername, readFromStream, writeToStream } from './messages/protocols'
+import { FileManager } from './utils/FileManager'
 import { Multiaddr } from 'multiaddr'
-import { Logger, LoggerTopics } from './Logger'
+import { Logger, LoggerTopics } from './utils/Logger'
+import { MessageExecutor } from './messages/MessageExecutor'
+import { FindMessage } from './messages/FindHandler'
+import { MessageType } from './messages/MessageHandler'
+import { SendingMessage } from './messages/SendingHandler'
+import { SendingMessageMonitor } from './messages/SendingMessageMonitor'
+import { Timeline } from './timeline/Timeline'
+import { CustomPriorityQueue } from './timeline/CustomPriorityQueue'
 
 export interface PeerInfo {
   username: string
-  timeline: PQ<Post>
+  timelineQueue: CustomPriorityQueue<Post>
+  timelineSet: Set<string>
+  ownPosts: Array<Post>
+  subscribed: Set<string>
+}
+
+export interface PubsubMessage {
+  topicIDs: string[],
+  from: string,
+  data: Buffer,
+  seqno: Buffer,
+  signature: Buffer,
+  key: Buffer,
+  receivedFrom: string
 }
 
 export class Peer {
@@ -35,19 +53,28 @@ export class Peer {
   textEncoder = new TextEncoder()
   users: Map<string, PeerId> = new Map()
   subscribed: Set<string> = new Set()
-  timeline: PQ<Post>
+  timeline = new Timeline()
+  ownPosts = new Array<Post>()
+  sendingMessageMonitor = new SendingMessageMonitor()
 
   constructor(node: Libp2p, username: string) {
     this.node = node
     this.username = username
-    const comparator = Post.compare
-    this.timeline = new PriorityQueue({ comparator })
     this.writeToFile(5)
   }
 
   static async createPeerFromFields(peerFields: PeerInfo, boostrapers: Array<string>): Promise<Peer> {
     const peer = await this.createPeer(peerFields.username, boostrapers)
-    peer.timeline = peerFields.timeline
+    peer.timeline.queue = peerFields.timelineQueue
+    peer.timeline.set = peerFields.timelineSet
+    peer.ownPosts = peerFields.ownPosts
+    peer.subscribed = peerFields.subscribed
+
+    console.log("---------------------\nRead from storage:\n", peer.timeline, peer.ownPosts, peer.subscribed, "\n---------------------")
+
+    for (const user of Array.from(peer.subscribed))
+      peer.subscribeUser(user, true)
+
     return peer
   }
 
@@ -93,61 +120,178 @@ export class Peer {
     return new Peer(node, username)
   }
 
-  subscribeTopic(topic: string) {
-    this.node.pubsub.on(topic, (msg) => {
-      const post: Post = JSON.parse(this.textDecoder.decode(msg.data))
-      this.addPost(post)
-      Logger.log(LoggerTopics.COMMS, `Received message from '${topic}': '${post.content}'.`)
+  subscribeUser(user: string, useDelayInFind = false) {
+    this.node.pubsub.on(user, (message: PubsubMessage) => {
+      new MessageExecutor(message, user, this).execute()
     })
-    this.node.pubsub.subscribe(topic)
-    this.subscribed.add(topic)
+    this.node.pubsub.subscribe(user)
+    this.subscribed.add(user)
+
+    this.startFindProtocol(user, useDelayInFind)
   }
 
-
-  unsubscribeTopic(topic: string) {
-    this.node.pubsub.removeAllListeners(topic)
-    this.node.pubsub.unsubscribe(topic)
-    this.subscribed.delete(topic)
+  unsubscribeUser(user: string) {
+    this.node.pubsub.removeAllListeners(user)
+    this.node.pubsub.unsubscribe(user)
+    this.subscribed.delete(user)
   }
 
-  sendMessage(topic: string, message: string) {
-    this.node.pubsub.publish(topic, this.textEncoder.encode(message))
+  publishToTopic(topic: string, messageType: MessageType, message: string) {
+    this.node.pubsub.publish(topic, this.textEncoder.encode(messageType + "\n\r" + message))
   }
 
   publish(message: string) {
-    this.sendMessage(this.username, JSON.stringify(new Post(this.username, message, new Date())))
+    const newPost = new Post(this.username, message, new Date(new Date().toString()))
+    this.publishToTopic(this.username, MessageType.POST, JSON.stringify(newPost))
+    this.ownPosts.push(newPost)
   }
 
-  addUser(username: string, id: PeerId) {
+  async startFindProtocol(user: string, useDelay = false, getAll: boolean = false) {
+    const timestamp = this.timeline.isEmpty() || getAll ? new Date(2000, 1) : this.timeline.peek().timestamp
+
+    if (useDelay) await delay(3000)
+
+    // if this peer knows the user's address, request posts directly from him
+    if (this.users.has(user)) {
+      const posts = await this.requestPostsFromUser(user, timestamp)
+
+      if (posts != undefined) {
+        console.log("Received posts directly from user", posts)
+
+        for (const post of posts)
+          this.addPostToTimeline(post)
+
+        return
+      }
+    }
+
+    // else send message to the user's subscribers
+    console.log(`Couldn't reach ${user}, trying its subscribers!`)
+
+    const findMessage: FindMessage = {
+      user,
+      requester: this.username,
+      timestamp,
+      peerId: this.node.peerId.toB58String()
+    }
+
+    this.publishToTopic(user, MessageType.FIND, JSON.stringify(findMessage))
+    Logger.log(MessageType.FIND, "Sent message", findMessage)
+  }
+
+  // returns true if the posts were obtained, false otherwise
+  async requestPostsFromUser(user: string, timestamp: Date): Promise<Array<Post>|undefined> {
+    try {
+
+      const { stream } = await this.node.dialProtocol(this.users.get(user) as PeerId, "/get-posts")
+      writeToStream(timestamp.toString(), stream)
+
+      return (JSON.parse(await readFromStream(stream)) as Array<PostJSONObject>)
+                      .map(post => Post.createFromObject(post))
+
+    } catch (_e) {}
+
+    return undefined
+  }
+
+  private publishSendingMessage(user: string, receiver: string, sendingIds: string[]) {
+    const sendingMessage: SendingMessage = {
+      receiver,
+      posts: sendingIds
+    }
+    console.log("# Sending sending message", sendingMessage)
+    this.publishToTopic(user, MessageType.SENDING, JSON.stringify(sendingMessage))
+  }
+
+  async sendFoundPosts(user: string, requester: string, timestamp: Date, peerId: PeerId) {
+    console.log("sendFoundPosts to requester:", requester)
+
+    const posts = this.findSubsequentPosts(user, timestamp)
+
+    if (posts.length == 0) return
+
+    console.log("# Sending found posts (waiting delay)")
+    this.sendingMessageMonitor.startMonitoring(requester)
+
+    await delay(100 + Math.random() * 1000)
+
+    const postsAlreadySent = this.sendingMessageMonitor.getAlreadySent(requester)
+    console.log("# End of delay, posts already sent: ", postsAlreadySent)
+    this.sendingMessageMonitor.stopMonitoring(requester)
+
+    const postsToSend = posts.filter(post => !postsAlreadySent.has(post.id))
+
+    if (postsToSend.length == 0) return
+
+    const sendingIds = posts.map(post => post.id)
+    this.publishSendingMessage(user, requester, sendingIds)
+
+    Logger.log(MessageType.FIND, "Sending found posts", postsToSend)
+
+    const { stream } = await this.node.dialProtocol(peerId, "/posts-receiver")
+    writeToStream(JSON.stringify(postsToSend), stream)
+  }
+
+  findSubsequentPosts(user: string, timestamp: Date): Post[] {
+    const posts: Post[] = []
+    const timelineArray = this.timeline.toArray()
+
+    for (let i = 0; i < timelineArray.length; i++) {
+      const post = timelineArray[i]
+
+      if (post.timestamp > timestamp && post.user == user)
+        posts.push(post)
+
+      if (post.timestamp <= timestamp) break
+    }
+    return posts
+  }
+
+  addKnownUser(username: string, id: PeerId) {
     this.users.set(username, id)
   }
 
-  addPost(post: Post) {
+  addPostToTimeline(post: Post) {
     this.timeline.push(post)
   }
 
   removeOldPosts(postsToKeep: number) {
-    const comparator = Post.compare
-    const newQueue = new PriorityQueue({ comparator })
-
-    while (newQueue.length < postsToKeep && this.timeline.length > 0) {
-      newQueue.push(this.timeline.pop())
-    }
-
-    this.timeline = newQueue
+    this.timeline.keepNPosts(postsToKeep)
   }
 
   setupEventListeners() {
     this.node.connectionManager.on('peer:connect', async (connection: Connection) => {
-      // console.log('Connection established to:', connection.remotePeer.toB58String())	// Emitted when a new connection has been created
       await delay(100)
       const remoteUsername = await getUsername(connection.remotePeer, this.node)
       Logger.log(LoggerTopics.PEER, "Found user " + remoteUsername + " with Id " + connection.remotePeer.toString());
-      this.addUser(remoteUsername, connection.remotePeer)
+      this.addKnownUser(remoteUsername, connection.remotePeer)
     })
 
     this.node.handle('/username', async ({ stream }) => {
-      await sendReply(this.username, stream)
+      await writeToStream(this.username, stream)
+    })
+
+    this.node.handle('/get-posts', async ({ stream }) => {
+      const timestamp = new Date(await readFromStream(stream))
+      const postsReply = []
+
+      for (let i = this.ownPosts.length - 1; i >= 0; i--) {
+        if (this.ownPosts[i].timestamp > timestamp) postsReply.push(this.ownPosts[i])
+        else break
+      }
+
+      console.log("Sending posts from timestamp", timestamp, postsReply)
+
+      await writeToStream(JSON.stringify(postsReply), stream)
+    })
+
+    this.node.handle('/posts-receiver', async ({ stream }) => {
+      const text = await readFromStream(stream)
+      const posts: Array<Post> = JSON.parse(text).map((post: PostJSONObject) => Post.createFromObject(post))
+
+      console.log("Received posts", posts)
+      for (const post of posts)
+        this.addPostToTimeline(post)
     })
   }
 
