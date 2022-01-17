@@ -29,8 +29,6 @@ export class Timeline {
       const post = queueArray[i]
       this.mostRecentTimestamp.set(post.user, post.timestamp)
     }
-
-    console.log("Updated most recent timestamp", this.mostRecentTimestamp)
   }
 
   setSet(set: Set<string>) {
@@ -50,7 +48,6 @@ export class Timeline {
     if (mostRecent === undefined || post.timestamp > mostRecent) {
       this.mostRecentTimestamp.set(post.user, post.timestamp)
     }
-    console.log("Updated most recent timestamp", this.mostRecentTimestamp)
   }
 
   peek() {

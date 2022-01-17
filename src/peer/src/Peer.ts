@@ -70,7 +70,7 @@ export class Peer {
     peer.ownPosts = peerFields.ownPosts
     peer.subscribed = peerFields.subscribed
 
-    console.log("---------------------\nRead from storage:\n", peer.timeline, peer.ownPosts, peer.subscribed, "\n---------------------")
+    Logger.wrapped("-", "Read from storage:\n", peer.timeline, peer.ownPosts, peer.subscribed)
 
     for (const user of Array.from(peer.subscribed))
       peer.subscribeUser(user, true)
@@ -151,13 +151,14 @@ export class Peer {
     const timestamp = mostRecent === undefined || getAll ? new Date(2000, 1) : mostRecent
 
     if (useDelay) await delay(3000)
+    Logger.log(LoggerTopics.FIND, `Looking for ${user}'s posts...`)
 
     // if this peer knows the user's address, request posts directly from him
     if (this.users.has(user)) {
       const posts = await this.requestPostsFromUser(user, timestamp)
 
       if (posts != undefined) {
-        console.log("Received posts directly from user", posts)
+        Logger.log(LoggerTopics.FIND, "Received posts directly from user", posts)
 
         for (const post of posts)
           this.addPostToTimeline(post)
@@ -167,7 +168,7 @@ export class Peer {
     }
 
     // else send message to the user's subscribers
-    console.log(`Couldn't reach ${user}, trying its subscribers!`)
+    Logger.log(LoggerTopics.FIND, `Couldn't reach ${user}, trying its subscribers!`)
 
     const findMessage: FindMessage = {
       user,
@@ -177,7 +178,7 @@ export class Peer {
     }
 
     this.publishToTopic(user, MessageType.FIND, JSON.stringify(findMessage))
-    Logger.log(MessageType.FIND, "Sent message", findMessage)
+    Logger.log(LoggerTopics.FIND, "Sent message", findMessage)
   }
 
   // returns true if the posts were obtained, false otherwise
@@ -200,24 +201,24 @@ export class Peer {
       receiver,
       posts: sendingIds
     }
-    console.log("# Sending sending message", sendingMessage)
+    Logger.log(LoggerTopics.SENDING, "# Sending SENDING message", sendingMessage)
     this.publishToTopic(user, MessageType.SENDING, JSON.stringify(sendingMessage))
   }
 
   async sendFoundPosts(user: string, requester: string, timestamp: Date, peerId: PeerId) {
-    console.log("sendFoundPosts to requester:", requester)
+    Logger.log(LoggerTopics.FIND, "sendFoundPosts to requester:", requester)
 
     const posts = this.findSubsequentPosts(user, timestamp)
 
     if (posts.length == 0) return
 
-    console.log("# Sending found posts (waiting delay)")
+    Logger.log(LoggerTopics.FIND, "# Sending found posts (waiting delay)")
     this.sendingMessageMonitor.startMonitoring(requester)
 
     await delay(100 + Math.random() * 1000)
 
     const postsAlreadySent = this.sendingMessageMonitor.getAlreadySent(requester)
-    console.log("# End of delay, posts already sent: ", postsAlreadySent)
+    Logger.log(LoggerTopics.FIND, "# End of delay, posts already sent: ", postsAlreadySent)
     this.sendingMessageMonitor.stopMonitoring(requester)
 
     const postsToSend = posts.filter(post => !postsAlreadySent.has(post.id))
@@ -227,7 +228,7 @@ export class Peer {
     const sendingIds = posts.map(post => post.id)
     this.publishSendingMessage(user, requester, sendingIds)
 
-    Logger.log(MessageType.FIND, "Sending found posts", postsToSend)
+    Logger.log(LoggerTopics.FIND, "Sending found posts", postsToSend)
 
     const { stream } = await this.node.dialProtocol(peerId, "/posts-receiver")
     writeToStream(JSON.stringify(postsToSend), stream)
@@ -281,7 +282,7 @@ export class Peer {
         else break
       }
 
-      console.log("Sending posts from timestamp", timestamp, postsReply)
+      Logger.log(LoggerTopics.SENDING, "Sending posts from timestamp", timestamp, postsReply)
 
       await writeToStream(JSON.stringify(postsReply), stream)
     })
@@ -290,7 +291,7 @@ export class Peer {
       const text = await readFromStream(stream)
       const posts: Array<Post> = JSON.parse(text).map((post: PostJSONObject) => Post.createFromObject(post))
 
-      console.log("Received posts", posts)
+      Logger.log(LoggerTopics.COMMS, "Received posts", posts)
       for (const post of posts)
         this.addPostToTimeline(post)
     })

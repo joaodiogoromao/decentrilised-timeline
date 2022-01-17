@@ -14,7 +14,6 @@ import { exit } from 'process'
 import { initInterface } from './interface/interface'
 import { FileManager } from './utils/FileManager'
 import { Peer } from './Peer'
-import { Logger, LoggerTopics } from './utils/Logger'
 
 const checkArgs = () => {
   if (process.argv.length < 3) {
@@ -26,7 +25,6 @@ const checkArgs = () => {
 const createPeer = async (username: string, bootstrapper?: string) => {
   try {
     const peerInfo = await FileManager.readPeer(username)
-    Logger.log(LoggerTopics.DISK, `Restored info from disk:\n`, peerInfo)
     return await Peer.createPeerFromFields(peerInfo, [bootstrapper as string])
   } catch (e) {
     return await Peer.createPeer(username, [bootstrapper])

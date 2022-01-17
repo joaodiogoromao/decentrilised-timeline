@@ -1,4 +1,4 @@
-import { Logger } from "../utils/Logger";
+import { Logger, LoggerTopics } from "../utils/Logger";
 import { Peer, PubsubMessage } from "../Peer";
 import { FindHandler } from "./FindHandler";
 import { MessageHandler, MessageType } from "./MessageHandler";
@@ -35,7 +35,7 @@ export class MessageExecutor {
         } else if (messageId == MessageType.SENDING) {
             return new SendingHandler(splitted)
         } else {
-            Logger.log("MESSAGES", `Received unknown message: ${this.pubsubMessage.data}`)
+            Logger.log(LoggerTopics.MESSAGES, `Received unknown message: ${this.pubsubMessage.data}`)
             throw new Error('Ooops')
         }
     }

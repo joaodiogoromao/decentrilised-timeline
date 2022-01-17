@@ -10,7 +10,7 @@ export class PostHandler extends MessageHandler {
     constructor(message: string[], topic: string) {
         super(message)
         if (message[0] != MessageType.POST) {
-            Logger.log("MESSAGES", `Tried to create POST message with wrong id: ${message[0]}`)
+            Logger.log(LoggerTopics.MESSAGES, `Tried to create POST message with wrong id: ${message[0]}`)
             throw new Error('Ooops')
         }
 

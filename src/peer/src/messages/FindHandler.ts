@@ -1,4 +1,4 @@
-import { Logger } from "../utils/Logger";
+import { Logger, LoggerTopics } from "../utils/Logger";
 import { Peer } from "../Peer";
 import { MessageHandler, MessageType } from "./MessageHandler";
 import PeerId from 'peer-id'
@@ -20,13 +20,13 @@ export class FindHandler extends MessageHandler {
     constructor(message: string[]) {
         super(message)
         if (message[0] != MessageType.FIND) {
-            Logger.log("MESSAGES", `Tried to create FIND message with wrong id: ${message[0]}`)
+            Logger.log(LoggerTopics.MESSAGES, `Tried to create FIND message with wrong id: ${message[0]}`)
             throw new Error('Ooops')
         }
 
         const findMessage: FindMessage = JSON.parse(message[1])
 
-        Logger.log("FIND", "Received find message", findMessage)
+        Logger.log(LoggerTopics.FIND, "Received find message", findMessage)
 
         this.user = findMessage.user
         this.requester = findMessage.requester

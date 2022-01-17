@@ -1,4 +1,4 @@
-import { Logger } from "../utils/Logger";
+import { Logger, LoggerTopics } from "../utils/Logger";
 import { Peer } from "../Peer";
 import { MessageHandler, MessageType } from "./MessageHandler";
 
@@ -15,13 +15,13 @@ export class SendingHandler extends MessageHandler {
     constructor(message: string[]) {
         super(message)
         if (message[0] != MessageType.SENDING) {
-            Logger.log("MESSAGES", `Tried to create SENDING message with wrong id: ${message[0]}`)
+            Logger.log(LoggerTopics.MESSAGES, `Tried to create SENDING message with wrong id: ${message[0]}`)
             throw new Error('Ooops')
         }
 
         const findMessage: SendingMessage = JSON.parse(message[1])
 
-        Logger.log("FIND", "Received sending message", findMessage)
+        Logger.log(LoggerTopics.FIND, "Received sending message", findMessage)
 
         this.receiver = findMessage.receiver
         this.posts = findMessage.posts
