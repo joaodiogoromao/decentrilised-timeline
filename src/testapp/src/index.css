@@ -34,9 +34,10 @@ body {
   display: block;
 } */
 
-#two-column {
+#three-column {
   display: grid;
-  grid-template-columns: 1fr 15rem;
+  grid-template-columns: 1fr 22rem 15rem;
+  column-gap: 3rem;
 }
 
 #layout {

@@ -7,10 +7,12 @@ import { ConnectionContext } from '../utils/RequireConnection'
 import { PostPublisher } from './PostPublisher'
 import { Post } from './TimelinePost'
 import { EndpointContext } from '../App'
+import { OwnPosts } from './OwnPosts'
 
 
 export const PeerContent = () => {
     const [timeline, setTimeline] = useState<Array<Post> | null>(null)
+    const [ownPosts, setOwnPosts] = useState<Array<Post> | null>(null)
     const [users, setUsers] = useState<Map<string, boolean> | null>(null)
 
     const connection = useContext(EndpointContext) as Connection;
@@ -28,6 +30,7 @@ export const PeerContent = () => {
         const res: GeneralResponse = (await axios.get(connection.general)).data;
 
         setTimeline(res.timeline)
+        setOwnPosts([...res.ownPosts].reverse())
 
         const subscriptions = new Set(res.subscriptions)
         const newUsers = new Map()
@@ -55,8 +58,9 @@ export const PeerContent = () => {
 
         <PostPublisher publish={publish} />
 
-        <div id="two-column">
+        <div id="three-column">
             <Timeline data={timeline} clearTimeline={clearTimeline} />
+            <OwnPosts data={ownPosts} />
             <Users data={users} subscribe={subscribe} unsubscribe={unsubscribe} />
         </div>
     </>

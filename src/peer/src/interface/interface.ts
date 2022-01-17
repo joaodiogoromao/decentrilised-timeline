@@ -19,7 +19,8 @@ export const initInterface = (peer: Peer) => {
     res.send({
       timeline: peer.timeline.toArray(),
       users: Array.from(peer.users.keys()),
-      subscriptions: Array.from(peer.subscribed.keys())
+      subscriptions: Array.from(peer.subscribed.keys()),
+      ownPosts: peer.ownPosts
     })
   })
 

@@ -2,7 +2,7 @@ import axios from "axios"
 import { useContext, useEffect, useState } from "react"
 import { EndpointContext } from "../App"
 import { Connection } from "../utils/PeerEndpoints"
-import { Timeline } from "./Timeline"
+import { PostList } from "./PostList"
 import { Post } from "./TimelinePost"
 
 export interface ModalProps {
@@ -25,7 +25,7 @@ export const Modal = ({ setOpen, username }: ModalProps) => {
             <div className="close-button-container">
                 <button onClick={ setOpen.bind(this, false) }>Close</button>
             </div>
-            { posts ? <Timeline data={posts} /> : <p>Loading</p> }
+            { posts ? <PostList data={posts} /> : <p>Loading...</p> }
         </div>
     </div>
 }

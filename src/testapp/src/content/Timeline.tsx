@@ -1,4 +1,5 @@
-import { Post, TimelinePost } from "./TimelinePost"
+import { PostList } from "./PostList"
+import { Post } from "./TimelinePost"
 
 export interface TimelineProps {
     data: Array<Post> | null,
@@ -7,12 +8,10 @@ export interface TimelineProps {
 
 export const Timeline = ({ data, clearTimeline }: TimelineProps) => {
     return <div>
+        <h2>Timeline</h2>
         { clearTimeline ? <>
-            <h2>Timeline</h2>
             <input type="button" onClick={clearTimeline} value="Clear" />
         </> : undefined }
-        { data === null ? <p>Loading...</p> : (data.length === 0 ? <p>No posts found.</p> : data.map((post: Post, idx) => 
-            <TimelinePost data={post} key={idx} />
-        )) }
+        <PostList data={data} />
     </div>
 }

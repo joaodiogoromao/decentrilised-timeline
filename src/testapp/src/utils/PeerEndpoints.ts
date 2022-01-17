@@ -12,7 +12,8 @@ export interface Connection {
 export interface GeneralResponse {
     timeline: Array<Post>,
     users: Array<string>,
-    subscriptions: Array<string>
+    subscriptions: Array<string>,
+    ownPosts: Array<Post>
 }
 
 export const PeerEndpoints = (interfacePort: string): Connection => {
