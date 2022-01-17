@@ -256,6 +256,10 @@ export class Peer {
     this.timeline.push(post)
   }
 
+  removeOldPosts(postsToKeep: number) {
+    this.timeline.keepNPosts(postsToKeep)
+  }
+
   setupEventListeners() {
     this.node.connectionManager.on('peer:connect', async (connection: Connection) => {
       await delay(100)

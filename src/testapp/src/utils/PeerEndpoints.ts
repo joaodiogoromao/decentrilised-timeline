@@ -7,6 +7,7 @@ export interface Connection {
     timeline: string,
     post: string,
     user: (user: string) => string
+    postsToKeep: (posts: number) => string
 }
 
 export interface GeneralResponse {
@@ -25,6 +26,7 @@ export const PeerEndpoints = (interfacePort: string): Connection => {
         username: global + "/username",
         timeline: global + "/timeline",
         post: global + "/post",
-        user: (username: string) => `${global}/user/${username}`
+        user: (username: string) => `${global}/user/${username}`,
+        postsToKeep: (posts: number) => `${global}/postsToKeep/${posts}`
     }
 }

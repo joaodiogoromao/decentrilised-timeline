@@ -67,6 +67,14 @@ export class Timeline {
     this.mostRecentTimestamp.clear()
   }
 
+  keepNPosts(numberOfPosts: number) {
+    const removedPosts = this.queue.keepNElements(numberOfPosts)
+    for (const post of removedPosts) {
+      this.set.delete(post.id)
+      this.mostRecentTimestamp.delete(post.user)
+    }
+  }
+
   toArray() {
     return this.queue.toArray()
   }

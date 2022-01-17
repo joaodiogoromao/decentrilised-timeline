@@ -60,6 +60,12 @@ export const initInterface = (peer: Peer) => {
     res.send()
   })
 
+  app.put('/postsToKeep/:posts', (req, res) => {
+    Logger.log(LoggerTopics.INTERFACE, `Keeping ${req.params.posts} most recent posts.`)
+    peer.removeOldPosts(parseInt(req.params.posts))
+    res.send()
+  })
+
   const server = app.listen(0, () => {
     //@ts-ignore
     const port = server.address().port

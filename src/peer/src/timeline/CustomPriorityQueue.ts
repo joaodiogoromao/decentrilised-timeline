@@ -49,6 +49,10 @@ export class CustomPriorityQueue<T> {
     this.data = []
   }
 
+  keepNElements(newSize: number): Array<T> {
+    return this.data.splice(newSize)
+  }
+
   toArray() {
     return this.data
   }
